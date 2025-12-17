@@ -1,0 +1,87 @@
+# Example furniture definitions
+# Key is the furniture id used in code and config references
+
+chair:
+  item: "v.bamboo_stairs" # TLibs item path (used with checkItemWithPath)
+  place-on-floor: true
+  place-on-wall: false
+  place-on-ceiling: false
+  rotate: true
+  solid: false
+
+wall_shelf:
+  item: "v.bamboo_fence_gate"
+  place-on-floor: false
+  place-on-wall: true
+  place-on-ceiling: false
+  rotate: false
+  solid: false
+  slots:
+    # Define a reusable template for shelf slots so we only override offsets per-slot
+    templates:
+      shelf_slot:
+        whitelist:
+          - "v.stick"
+          - "v.blaze_rod"
+          - "v.breeze_rod"
+        display:
+          rotation:
+            x: 0
+            y: 0
+            z: 135
+          scale:
+            x: 0.6
+            y: 0.6
+            z: 0.6
+          position:
+            x: 0
+            y: 0
+            z: 0
+
+    # Use a location group ‘center’ and reference the template for each named slot
+    center:
+      left:
+        template: shelf_slot
+        offset:
+          x: 0.3
+          y: 0.2
+          z: 0.1
+      middle:
+        template: shelf_slot
+        offset:
+          x: 0
+          y: 0.2
+          z: 0.1
+      right:
+        template: shelf_slot
+        offset:
+          x: -0.3
+          y: 0.2
+          z: 0.1
+      
+large_table:
+  item: "v.bamboo_planks"
+  place-on-floor: true
+  place-on-wall: false
+  place-on-ceiling: false
+  rotate: true
+  solid: true
+
+# Example of layered format using "layers" (each numeric key is a layer, 1 = bottom)
+# Use a fixed-size square matrix per layer. Characters other than '.' are treated as filled cells.
+# The center of the first layer (layer 1) will be aligned with the clicked block center.
+layered_example:
+  item: "v.bamboo_mosaic"
+  place-on-floor: true
+  place-on-wall: false
+  place-on-ceiling: false
+  rotate: true
+  layers:
+    1:
+      - "XXX"
+      - "X.X"
+      - "XXX"
+    2:
+      - ".X."
+      - "XXX"
+      - ".X."
