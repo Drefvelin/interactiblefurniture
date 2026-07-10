@@ -19,6 +19,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Interaction;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -26,11 +27,13 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Vector;
 
 import net.tfminecraft.InteractibleFurniture;
 import net.tfminecraft.database.Database;
@@ -40,7 +43,9 @@ import net.tfminecraft.furniture.FurnitureSlot;
 import net.tfminecraft.furniture.FurnitureType;
 import net.tfminecraft.manager.handlers.FurniturePlacementHandler;
 import net.tfminecraft.manager.handlers.FurnitureBreakHandler;
+import net.tfminecraft.manager.handlers.InteractionHandler;
 import net.tfminecraft.manager.handlers.SlotInteractionHandler;
+import net.tfminecraft.utils.CoordinateUtils;
 
 /**
  * Manages placement and breaking of simple furniture instances.
@@ -174,29 +179,10 @@ public class FurnitureManager implements Listener {
         for (Furniture f : placed.values()) {
             if (!isValidInteraction(f, clicked, e.getBlockFace())) continue;
 
-            Entity furnitureEntity = Bukkit.getEntity(f.getEntityId());
-            FurnitureType type = f.getType();
-            if (type == null) continue;
-
-            FurnitureInteractEvent event = new FurnitureInteractEvent(p, f);
-            Bukkit.getPluginManager().callEvent(event);
-            if(event.isCancelled()) return;
-
-            if(type.canPickup() && p.getInventory().getItemInMainHand().getType().equals(Material.AIR) && f.getActiveSlots().isEmpty()) {
-                // Attempt to pick up the furniture
-                FurnitureBreakHandler.removeFurniture(f.getEntityId(), placed, p, "picked-up");
+            Vector clickPoint = CoordinateUtils.calculateClickPoint(p, clicked, e.getBlockFace());
+            if (processFurnitureInteraction(p, f, clickPoint, e.getBlockFace(), clicked)) {
                 e.setCancelled(true);
                 return;
-            }
-
-
-            // Handle slot interaction if furniture has slots
-            if (!type.getSlots().isEmpty()) {
-                boolean handled = SlotInteractionHandler.handleSlotInteraction(p, clicked, e.getAction(), f, furnitureEntity, e.getBlockFace());
-                if (handled) {
-                    e.setCancelled(true);
-                    return;
-                }
             }
         }
 
@@ -211,6 +197,59 @@ public class FurnitureManager implements Listener {
             e.setCancelled(true);
         }
 	}
+
+    @EventHandler
+    public void onPlayerInteractAtEntity(PlayerInteractAtEntityEvent e) {
+        if (!(e.getRightClicked() instanceof Interaction interaction)) return;
+
+        Furniture f = InteractionHandler.resolveFurniture(interaction, placed);
+        if (f == null || f.isCarried()) return;
+
+        Player p = e.getPlayer();
+        if (cooldown.containsKey(p)) {
+            long last = cooldown.get(p);
+            if (System.currentTimeMillis() < last) return;
+        }
+        cooldown.put(p, System.currentTimeMillis() + 200);
+
+        Vector clickPoint = interaction.getLocation().toVector().add(e.getClickedPosition());
+        if (processFurnitureInteraction(p, f, clickPoint, BlockFace.UP, null)) {
+            e.setCancelled(true);
+        }
+    }
+
+    private boolean processFurnitureInteraction(Player p, Furniture f, Vector clickPoint, BlockFace faceHint, Block clicked) {
+        Entity furnitureEntity = Bukkit.getEntity(f.getEntityId());
+        if (!(furnitureEntity instanceof ItemDisplay display)) return false;
+
+        FurnitureType type = f.getType();
+        if (type == null) return false;
+
+        FurnitureSlot hitSlot = null;
+        if (!type.getSlots().isEmpty() && clickPoint != null) {
+            hitSlot = SlotInteractionHandler.findClosestSlotForHit(clickPoint, f, display);
+        }
+
+        FurnitureInteractEvent event = new FurnitureInteractEvent(p, f, hitSlot, clickPoint);
+        Bukkit.getPluginManager().callEvent(event);
+        if (event.isCancelled()) return true;
+
+        if (type.canPickup() && p.getInventory().getItemInMainHand().getType().equals(Material.AIR)
+                && f.getActiveSlots().isEmpty()) {
+            FurnitureBreakHandler.removeFurniture(f.getEntityId(), placed, p, "picked-up");
+            return true;
+        }
+
+        if (hitSlot != null && hitSlot.isInteractible()) {
+            if (SlotInteractionHandler.handleSlotInteraction(p, f, display, hitSlot, Action.RIGHT_CLICK_BLOCK)) {
+                return true;
+            }
+        } else if (hitSlot == null && clicked != null && !type.getSlots().isEmpty()) {
+            return SlotInteractionHandler.handleSlotInteraction(p, clicked, Action.RIGHT_CLICK_BLOCK, f, display, faceHint);
+        }
+
+        return event.isCancelled();
+    }
 
 
     @EventHandler
@@ -324,13 +363,19 @@ public class FurnitureManager implements Listener {
         List<Furniture> loaded = database.loadChunk(chunk);
 
         for (Furniture f : loaded) {
-            // Respawn the entity if missing (optional safety)
             if (Bukkit.getEntity(f.getEntityId()) == null) {
                 Bukkit.getPlayerExact("drefvelin").sendMessage("no display found by uuid");
-                // TODO: implement respawn logic (spawn ItemDisplay again)
             }
 
             placed.put(f.getEntityId(), f);
+
+            if (f.getType().hasInteraction()) {
+                Entity interaction = f.getInteractionEntityId() != null
+                        ? Bukkit.getEntity(f.getInteractionEntityId()) : null;
+                if (interaction == null || interaction.isDead()) {
+                    InteractionHandler.spawnInteraction(f);
+                }
+            }
         }
 
         if (!loaded.isEmpty()) {

@@ -1,0 +1,27 @@
+{
+  "furniture": [
+    {
+      "originBlockFace": "UP",
+      "activeSlots": {
+        "liquid": {
+          "displayStandId": "48d6a0a2-edd8-4ac1-b2b7-228f2a37e0cd"
+        }
+      },
+      "originBlock": {
+        "world": "TFMC_S2",
+        "x": 1458.0,
+        "y": 146.0,
+        "z": 2567.0
+      },
+      "entityId": "e5191435-98ef-4d92-a936-ac9fc0380c44",
+      "location": {
+        "world": "TFMC_S2",
+        "x": 1458.5,
+        "y": 147.5,
+        "z": 2567.5
+      },
+      "id": "pot",
+      "type": "pot"
+    }
+  ]
+}

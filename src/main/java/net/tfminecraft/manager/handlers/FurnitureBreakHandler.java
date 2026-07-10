@@ -16,6 +16,7 @@ import net.tfminecraft.events.FurnitureBreakEvent;
 import net.tfminecraft.furniture.Furniture;
 import net.tfminecraft.furniture.FurnitureSlot;
 import net.tfminecraft.furniture.FurnitureType;
+import net.tfminecraft.manager.handlers.InteractionHandler;
 
 import java.util.HashSet;
 import java.util.Map;
@@ -45,7 +46,9 @@ public class FurnitureBreakHandler {
         }
         dropFurnitureItem(breaker, furniture, reason);        // Drop items and remove slot displays
         dropSlotItems(furniture, furnitureId, dropslots);
-        
+
+        furniture.removeInteractionEntity();
+
         // Remove the furniture entity
         removeEntity(furnitureId);
     }
@@ -97,29 +100,19 @@ public class FurnitureBreakHandler {
     }
 
     private static void dropSlotItems(Furniture furniture, UUID furnitureId, boolean dropslots) {
-        Entity furnitureEntity = Bukkit.getEntity(furnitureId);
-        if (!(furnitureEntity instanceof ItemDisplay)) return;
+        Location dropLoc = furniture.getLoc();
+        if (dropLoc.getWorld() == null) return;
 
-        FurnitureType type = furniture.getType();
-        if (type == null) return;
-
-        for (Map.Entry<String, FurnitureSlot> entry : type.getSlots().entrySet()) {
-            furniture.getActiveSlot(entry.getKey()).ifPresent(slot -> {
-                // First remove the display stand to prevent duplicate drops
-                Entity displayStand = Bukkit.getEntity(slot.getDisplayStandId());
-                if (displayStand != null) {
-                    displayStand.remove();
+        for (FurnitureSlot slot : new java.util.ArrayList<>(furniture.getActiveSlots().values())) {
+            if (dropslots) {
+                ItemStack item = slot.getCurrentItem();
+                if (item != null) {
+                    dropLoc.getWorld().dropItemNaturally(dropLoc, item);
                 }
-                if(dropslots) {
-                    // Then drop the item if any
-                    ItemStack item = slot.getCurrentItem();
-                    if (item != null) {
-                        Location dropLoc = furnitureEntity.getLocation();
-                        furnitureEntity.getWorld().dropItemNaturally(dropLoc, item);
-                    }
-                }
-            });
+            }
+            slot.removeDisplayStand(dropLoc.getWorld());
         }
+        furniture.clearActiveSlots();
     }
 
     private static void removeEntity(UUID furnitureId) {

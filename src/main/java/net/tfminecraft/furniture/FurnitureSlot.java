@@ -47,12 +47,12 @@ public class FurnitureSlot {
         this.layer = layer;
         this.row = row;
         this.col = col;
-        this.offset = offset;
-        this.whitelist = whitelist;
+        this.offset = offset != null ? offset : new Vector(0, 0, 0);
+        this.whitelist = whitelist != null ? whitelist : List.of();
         this.interactible = interactible;
-        this.displayRotation = displayRotation;
-        this.displayScale = displayScale;
-        this.displayPosition = displayPosition;
+        this.displayRotation = displayRotation != null ? displayRotation : new Vector(0, 0, 0);
+        this.displayScale = displayScale != null ? displayScale : new Vector(1, 1, 1);
+        this.displayPosition = displayPosition != null ? displayPosition : new Vector(0, 0, 0);
         this.currentItem = null;
         this.displayStandId = null;
         this.f = f;

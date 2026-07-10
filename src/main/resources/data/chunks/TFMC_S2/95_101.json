@@ -1,0 +1,65 @@
+{
+  "furniture": [
+    {
+      "originBlockFace": "UP",
+      "activeSlots": {
+        "liquid": {
+          "displayStandId": "f9ac80f2-f741-4265-9016-53518a96931a"
+        },
+        "input_5": {
+          "displayStandId": "b6602567-e00f-4470-895c-29a892f6ee72"
+        },
+        "input_1": {
+          "displayStandId": "a34d0658-2ee5-4f82-9060-80e76a115a92"
+        },
+        "input_2": {
+          "displayStandId": "c2ed652e-7eff-4a1c-b77b-c5f9c8d74d34"
+        },
+        "food_item": {
+          "displayStandId": "e9a8b67b-f804-493c-9428-08a2a10241f1"
+        }
+      },
+      "originBlock": {
+        "world": "TFMC_S2",
+        "x": 1523.0,
+        "y": 105.0,
+        "z": 1631.0
+      },
+      "entityId": "483fe9d9-f677-44bc-b628-7f2139085b09",
+      "location": {
+        "world": "TFMC_S2",
+        "x": 1523.5,
+        "y": 106.5,
+        "z": 1631.5
+      },
+      "id": "bowl",
+      "type": "bowl"
+    },
+    {
+      "originBlockFace": "UP",
+      "activeSlots": {
+        "item_2": {
+          "displayStandId": "aeab8d7f-0f00-4c4b-9a6e-418eaa8fcbff"
+        },
+        "item_1": {
+          "displayStandId": "c1b4694e-8877-41c9-bcd3-a592fdc15827"
+        }
+      },
+      "originBlock": {
+        "world": "TFMC_S2",
+        "x": 1522.0,
+        "y": 105.0,
+        "z": 1631.0
+      },
+      "entityId": "74fb7059-27ff-497d-bee6-218231bc4fe4",
+      "location": {
+        "world": "TFMC_S2",
+        "x": 1522.5,
+        "y": 106.5,
+        "z": 1631.5
+      },
+      "id": "plate",
+      "type": "plate"
+    }
+  ]
+}

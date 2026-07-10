@@ -1,0 +1,22 @@
+{
+  "furniture": [
+    {
+      "originBlockFace": "UP",
+      "originBlock": {
+        "world": "TFMC_S2",
+        "x": 3127.0,
+        "y": 568.0,
+        "z": 4242.0
+      },
+      "entityId": "4e3006c9-83be-49b0-bc50-1b9dea95f76a",
+      "location": {
+        "world": "TFMC_S2",
+        "x": 3127.5,
+        "y": 569.5,
+        "z": 4242.5
+      },
+      "id": "bucket",
+      "type": "bucket"
+    }
+  ]
+}

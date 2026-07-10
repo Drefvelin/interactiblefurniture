@@ -163,6 +163,10 @@ public class Database {
             obj.put("data", dataMap);
         }
 
+        if (f.getInteractionEntityId() != null) {
+            obj.put("interactionEntityId", f.getInteractionEntityId().toString());
+        }
+
         return obj;
     }
 
@@ -186,6 +190,12 @@ public class Database {
         }
 
         Furniture furniture = new Furniture(typeId, loc, entityId, originLoc, originFace);
+
+        if (obj.has("interactionEntityId")) {
+            try {
+                furniture.setInteractionEntityId(UUID.fromString(obj.get("interactionEntityId").getAsString()));
+            } catch (IllegalArgumentException ignored) {}
+        }
 
         // Restore active slots
         if (obj.has("activeSlots")) {

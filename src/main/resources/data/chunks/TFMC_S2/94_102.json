@@ -1,0 +1,181 @@
+{
+  "furniture": [
+    {
+      "originBlockFace": "UP",
+      "activeSlots": {
+        "input_1": {
+          "displayStandId": "becdab7d-68c1-4e57-b6c5-9d09e1ea7555"
+        },
+        "stick": {
+          "displayStandId": "f057d68d-00f4-4314-b4b4-2a48440ced6e"
+        }
+      },
+      "originBlock": {
+        "world": "TFMC_S2",
+        "x": 1516.0,
+        "y": 104.0,
+        "z": 1642.0
+      },
+      "entityId": "6dfb4271-4a7c-4daa-aee4-c477f9511966",
+      "location": {
+        "world": "TFMC_S2",
+        "x": 1516.5,
+        "y": 105.5,
+        "z": 1642.5
+      },
+      "id": "butter_churn",
+      "type": "butter_churn"
+    },
+    {
+      "originBlockFace": "UP",
+      "activeSlots": {
+        "input_1": {
+          "displayStandId": "a2689bd6-044d-4394-8821-8d2e92478e89"
+        },
+        "input_2": {
+          "displayStandId": "1dd45d66-a855-439f-9697-ed51a7ab8d4c"
+        },
+        "input_3": {
+          "displayStandId": "62fb6b3e-0f91-4a88-92df-b19da37e4136"
+        },
+        "input_4": {
+          "displayStandId": "d2140971-fd7b-4485-86f7-4f3492c6ae6e"
+        }
+      },
+      "originBlock": {
+        "world": "TFMC_S2",
+        "x": 1518.0,
+        "y": 105.0,
+        "z": 1643.0
+      },
+      "entityId": "93f29b7c-443c-42c5-8cfd-a515d77ad1da",
+      "location": {
+        "world": "TFMC_S2",
+        "x": 1518.5,
+        "y": 106.5,
+        "z": 1643.5
+      },
+      "id": "butter_plate",
+      "type": "butter_plate"
+    },
+    {
+      "originBlockFace": "UP",
+      "originBlock": {
+        "world": "TFMC_S2",
+        "x": 1517.0,
+        "y": 105.0,
+        "z": 1638.0
+      },
+      "entityId": "f6cad105-4664-447b-98b8-12ea6ded2fba",
+      "location": {
+        "world": "TFMC_S2",
+        "x": 1517.5,
+        "y": 106.5,
+        "z": 1638.5
+      },
+      "id": "cutting_board",
+      "type": "cutting_board"
+    },
+    {
+      "originBlockFace": "UP",
+      "originBlock": {
+        "world": "TFMC_S2",
+        "x": 1517.0,
+        "y": 105.0,
+        "z": 1640.0
+      },
+      "entityId": "f9706030-bae2-48a2-896d-6d1045db516e",
+      "location": {
+        "world": "TFMC_S2",
+        "x": 1517.5,
+        "y": 106.5,
+        "z": 1640.5
+      },
+      "id": "plate",
+      "type": "plate"
+    },
+    {
+      "originBlockFace": "UP",
+      "originBlock": {
+        "world": "TFMC_S2",
+        "x": 1519.0,
+        "y": 105.0,
+        "z": 1641.0
+      },
+      "entityId": "446ff755-4148-4188-ac3e-1e07ccb5862e",
+      "location": {
+        "world": "TFMC_S2",
+        "x": 1519.5,
+        "y": 106.5,
+        "z": 1641.5
+      },
+      "id": "frying_pan",
+      "type": "frying_pan"
+    },
+    {
+      "originBlockFace": "UP",
+      "originBlock": {
+        "world": "TFMC_S2",
+        "x": 1518.0,
+        "y": 105.0,
+        "z": 1636.0
+      },
+      "entityId": "79a26822-8a44-4914-a9de-e97cdd443348",
+      "location": {
+        "world": "TFMC_S2",
+        "x": 1518.5,
+        "y": 106.5,
+        "z": 1636.5
+      },
+      "id": "saucepan",
+      "type": "saucepan"
+    },
+    {
+      "originBlockFace": "UP",
+      "originBlock": {
+        "world": "TFMC_S2",
+        "x": 1516.0,
+        "y": 106.0,
+        "z": 1636.0
+      },
+      "entityId": "a5998f9f-7673-4505-b10d-2635ad033d68",
+      "location": {
+        "world": "TFMC_S2",
+        "x": 1516.5,
+        "y": 107.5,
+        "z": 1636.5
+      },
+      "id": "pot",
+      "type": "pot"
+    },
+    {
+      "originBlockFace": "WEST",
+      "activeSlots": {
+        "middle": {
+          "displayStandId": "d6de8040-8637-41d3-b0e1-3aa63fdb2c22"
+        },
+        "left": {
+          "displayStandId": "abd1a7ab-9a2b-4e93-95d9-c12c275debf5"
+        },
+        "right": {
+          "displayStandId": "f1bcd179-378a-45af-9b86-8763be4f45bb"
+        }
+      },
+      "originBlock": {
+        "world": "TFMC_S2",
+        "x": 1520.0,
+        "y": 106.0,
+        "z": 1640.0
+      },
+      "entityId": "97d04393-302c-4909-ab4b-a6b842176a3f",
+      "location": {
+        "world": "TFMC_S2",
+        "x": 1519.5,
+        "y": 106.5,
+        "z": 1640.5
+      },
+      "id": "tool_shelf",
+      "type": "tool_shelf"
+    }
+  ]
+}

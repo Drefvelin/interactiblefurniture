@@ -42,4 +42,8 @@ public class CoordinateUtils {
         // For other faces, use 3D distance
         return slotPoint.distance(clickPoint);
     }
+
+    public static double distance3D(Vector a, Vector b) {
+        return a.distance(b);
+    }
 }

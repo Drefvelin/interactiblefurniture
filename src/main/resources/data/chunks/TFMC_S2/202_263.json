@@ -1,0 +1,30 @@
+{
+  "furniture": [
+    {
+      "originBlockFace": "UP",
+      "activeSlots": {
+        "input_1": {
+          "displayStandId": "fff2d2fe-bd9c-4002-b34a-e1bb9b2f88c5"
+        },
+        "stick": {
+          "displayStandId": "2b87afdc-ad9e-4223-9097-5bfc9fb76e48"
+        }
+      },
+      "originBlock": {
+        "world": "TFMC_S2",
+        "x": 3232.0,
+        "y": 587.0,
+        "z": 4216.0
+      },
+      "entityId": "056438ba-08c5-461f-8365-4443d241fe89",
+      "location": {
+        "world": "TFMC_S2",
+        "x": 3232.5,
+        "y": 588.5,
+        "z": 4216.5
+      },
+      "id": "butter_churn",
+      "type": "butter_churn"
+    }
+  ]
+}

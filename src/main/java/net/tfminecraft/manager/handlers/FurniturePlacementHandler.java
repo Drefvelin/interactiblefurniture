@@ -19,6 +19,7 @@ import net.tfminecraft.furniture.Furniture;
 import net.tfminecraft.furniture.FurnitureType;
 import net.tfminecraft.furniture.data.DisplayData;
 import net.tfminecraft.furniture.data.ModelData;
+import net.tfminecraft.manager.handlers.InteractionHandler;
 import net.tfminecraft.utils.Direction;
 
 import java.util.*;
@@ -30,6 +31,9 @@ public class FurniturePlacementHandler {
 
         for (FurnitureType type : net.tfminecraft.loaders.FurnitureLoader.getMap().values()) {
             if (!isValidFurnitureType(type, held)) continue;
+            if (!isValidPlacementSurface(type, face)) continue;
+            if (!type.isAllowedBlock(clicked.getType())) continue;
+            if (isOriginOccupied(clicked, placed)) return true;
 
             Location target = calculateTargetLocation(clicked, face, type);
             float yaw = calculateYaw(player, face, type);
@@ -53,6 +57,7 @@ public class FurniturePlacementHandler {
             placeBarrierBlocks(layers, furniture, clicked, face);
 
             placed.put(display.getUniqueId(), furniture);
+            InteractionHandler.spawnInteraction(furniture);
             Chunk chunk = furniture.getLoc().getChunk();
             InteractibleFurniture.getInstance().getFurnitureManager().getDatabase().saveChunk(chunk, InteractibleFurniture.getInstance().getFurnitureManager().getFurnitureInChunk(chunk));
             player.swingMainHand();
@@ -79,6 +84,9 @@ public class FurniturePlacementHandler {
 
         FurnitureType type = carried.getType();
         if (type == null) return false;
+        if (!isValidPlacementSurface(type, face)) return false;
+        if (!type.isAllowedBlock(clicked.getType())) return false;
+        if (isOriginOccupied(clicked, placed)) return false;
 
         // Calculate target location and yaw exactly like normal placement
         Location target = calculateTargetLocation(clicked, face, type);
@@ -109,15 +117,17 @@ public class FurniturePlacementHandler {
     }
 
     private static Location calculateTargetLocation(Block clicked, BlockFace face, FurnitureType type) {
+        if (type.canPlaceInside()) {
+            return clicked.getLocation().add(0.5, 0.0, 0.5);
+        }
+
         Location target = clicked.getLocation().add(0.5, 1.0, 0.5);
 
-        // Ceiling placement
-        if (type.canPlaceOnCeiling() && face == BlockFace.UP) {
+        if (type.canPlaceOnRoof() && face == BlockFace.DOWN) {
             target = clicked.getLocation().add(0.5, 0.0, 0.5);
         }
 
-        // Wall placement offset
-        if (type.canPlaceOnWall()) {
+        if (type.canPlaceOnWall() && isWallFace(face)) {
             switch (face) {
                 case NORTH -> target.add(0, -0.5, -0.5);
                 case SOUTH -> target.add(0, -0.5, 0.5);
@@ -156,7 +166,7 @@ public class FurniturePlacementHandler {
 
     private static float calculateYaw(Player player, BlockFace face, FurnitureType type) {
         // For wall furniture, always face outward from wall
-        if (type.canPlaceOnWall() && face != null) {
+        if (type.canPlaceOnWall() && isWallFace(face)) {
             switch (face) {
                 case NORTH -> { 
                     return 0;   // When facing north, model faces south
@@ -190,6 +200,29 @@ public class FurniturePlacementHandler {
         };
         
         return yaw;
+    }
+
+    private static boolean isWallFace(BlockFace face) {
+        return face == BlockFace.NORTH || face == BlockFace.SOUTH
+                || face == BlockFace.EAST || face == BlockFace.WEST;
+    }
+
+    private static boolean isValidPlacementSurface(FurnitureType type, BlockFace face) {
+        if (face == null) return false;
+        return switch (face) {
+            case UP -> type.canPlaceOnFloor();
+            case DOWN -> type.canPlaceOnRoof();
+            case NORTH, SOUTH, EAST, WEST -> type.canPlaceOnWall();
+            default -> false;
+        };
+    }
+
+    private static boolean isOriginOccupied(Block clicked, Map<UUID, Furniture> placed) {
+        for (Furniture f : placed.values()) {
+            if (f.isCarried()) continue;
+            if (f.isOriginBlock(clicked)) return true;
+        }
+        return false;
     }
 
     // ---- Space checking ----

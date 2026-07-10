@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
@@ -22,6 +23,7 @@ import net.tfminecraft.loaders.SoundLoader;
 import net.tfminecraft.utils.CoordinateUtils;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 public class SlotInteractionHandler {
@@ -29,13 +31,12 @@ public class SlotInteractionHandler {
             Entity furnitureEntity, org.bukkit.block.BlockFace clickedFace) {
         List<FurnitureSlot> possibleSlots = new ArrayList<>(furniture.getType().getSlots().values());
         if (possibleSlots.isEmpty()) {
-            // Fire FurnitureInteractEvent since no slots are present
             FurnitureInteractEvent event = new FurnitureInteractEvent(player, furniture);
             Bukkit.getPluginManager().callEvent(event);
             return false;
         }
 
-        FurnitureSlot closestSlot = findClosestSlot(player.getInventory().getItemInMainHand(), player, clicked, clickedFace, furniture, furnitureEntity, possibleSlots);
+        FurnitureSlot closestSlot = findClosestInteractibleSlot(player.getInventory().getItemInMainHand(), player, clicked, clickedFace, furniture, furnitureEntity, possibleSlots);
         if (closestSlot == null) {
             return false;
         }
@@ -43,13 +44,38 @@ public class SlotInteractionHandler {
         return handleSlotAction(player, clicked, action, furniture, furnitureEntity, closestSlot);
     }
 
-    private static FurnitureSlot findClosestSlot(ItemStack item, Player player, Block clicked, org.bukkit.block.BlockFace face,
+    public static boolean handleSlotInteraction(Player player, Furniture furniture, ItemDisplay furnitureEntity,
+            FurnitureSlot targetSlot, Action action) {
+        return handleSlotAction(player, null, action, furniture, furnitureEntity, targetSlot);
+    }
+
+    public static FurnitureSlot findClosestSlotForHit(Vector clickPoint, Furniture furniture, ItemDisplay parent) {
+        Collection<FurnitureSlot> slots = furniture.getType().getSlots().values();
+        if (slots.isEmpty() || clickPoint == null) return null;
+
+        FurnitureSlot closest = null;
+        double closestDist = Double.MAX_VALUE;
+
+        for (FurnitureSlot slot : slots) {
+            Location slotLoc = slot.computeDisplayLocation(
+                    furniture.getLoc(),
+                    parent,
+                    new DisplayData()
+            );
+            double dist = CoordinateUtils.distance3D(slotLoc.toVector(), clickPoint);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closest = slot;
+            }
+        }
+        return closest;
+    }
+
+    private static FurnitureSlot findClosestInteractibleSlot(ItemStack item, Player player, Block clicked, BlockFace face,
             Furniture furniture, Entity furnitureEntity, List<FurnitureSlot> slots) {
-        // Calculate click point intersection
         Vector clickPoint = CoordinateUtils.calculateClickPoint(player, clicked, face);
         if (clickPoint == null) return null;
 
-        // Find closest slot
         FurnitureSlot closest = null;
         double closestDist = Double.MAX_VALUE;
 
@@ -76,7 +102,7 @@ public class SlotInteractionHandler {
             Furniture furniture, Entity furnitureEntity, FurnitureSlot slot) {
         if (action == Action.RIGHT_CLICK_BLOCK) {
             return handleRightClick(player, furniture, furnitureEntity, slot);
-        } else if (action == Action.LEFT_CLICK_BLOCK) {
+        } else if (action == Action.LEFT_CLICK_BLOCK && clicked != null) {
             return handleLeftClick(player, clicked, furniture, slot);
         }
         return false;
@@ -86,12 +112,10 @@ public class SlotInteractionHandler {
             Entity furnitureEntity, FurnitureSlot slot) {
         ItemStack held = player.getInventory().getItemInMainHand();
 
-        // Take item if slot occupied and hand empty
         if (held == null || held.getType() == Material.AIR) {
             return tryTakeItem(player, furniture, slot);
         }
 
-        // Place item if allowed
         return tryPlaceItem(player, furniture, furnitureEntity, slot, held);
     }
 
@@ -108,7 +132,6 @@ public class SlotInteractionHandler {
 
             if(slotItem == null) return;
 
-            // Fire the take event before removing the item
             FurnitureSlotItemTakeEvent event = new FurnitureSlotItemTakeEvent(player, furniture, slot, slotItem.clone());
             Bukkit.getPluginManager().callEvent(event);
             if (event.isCancelled()) {
@@ -119,11 +142,9 @@ public class SlotInteractionHandler {
 
             boolean merged = false;
 
-            // Try to find a matching stack in inventory first
             for (ItemStack invItem : player.getInventory().getContents()) {
                 if (invItem == null) continue;
 
-                // Match by similarity (type + meta)
                 if (invItem.isSimilar(item)) {
                     int space = invItem.getMaxStackSize() - invItem.getAmount();
                     if (space > 0) {
@@ -139,12 +160,10 @@ public class SlotInteractionHandler {
                 }
             }
 
-            // If no existing stack matched or was full, place into main hand
             if (!merged && item.getAmount() > 0) {
                 player.getInventory().setItemInMainHand(item);
             }
 
-            // Play retrieval sound
             String path = TLibs.getItemAPI().getChecker().getAsStringPath(item);
             String sound = "minecraft:entity.item_frame.add_item";
             if (SoundLoader.has(path)) {
@@ -176,6 +195,7 @@ public class SlotInteractionHandler {
         if (event.isCancelled()) {
             return false;
         }
+        toPlace = event.getItem();
         toPlace.setAmount(1);
         held.setAmount(held.getAmount() - 1);
 

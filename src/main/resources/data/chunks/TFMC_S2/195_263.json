@@ -1,0 +1,27 @@
+{
+  "furniture": [
+    {
+      "originBlockFace": "UP",
+      "activeSlots": {
+        "item_1": {
+          "displayStandId": "140d1b0a-bd0d-4fa0-8bf0-fe2939546e19"
+        }
+      },
+      "originBlock": {
+        "world": "TFMC_S2",
+        "x": 3134.0,
+        "y": 569.0,
+        "z": 4221.0
+      },
+      "entityId": "53d6b56d-d5fa-4d3a-81c4-96dce9512fe2",
+      "location": {
+        "world": "TFMC_S2",
+        "x": 3134.5,
+        "y": 570.5,
+        "z": 4221.5
+      },
+      "id": "plate",
+      "type": "plate"
+    }
+  ]
+}

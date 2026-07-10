@@ -3,17 +3,15 @@
 
 chair:
   item: "v.bamboo_stairs" # TLibs item path (used with checkItemWithPath)
-  place-on-floor: true
-  place-on-wall: false
-  place-on-ceiling: false
+  placement_options:
+    floor: true
   rotate: true
   solid: false
 
 wall_shelf:
   item: "v.bamboo_fence_gate"
-  place-on-floor: false
-  place-on-wall: true
-  place-on-ceiling: false
+  placement_options:
+    wall: true
   rotate: false
   solid: false
   slots:
@@ -61,9 +59,8 @@ wall_shelf:
       
 large_table:
   item: "v.bamboo_planks"
-  place-on-floor: true
-  place-on-wall: false
-  place-on-ceiling: false
+  placement_options:
+    floor: true
   rotate: true
   solid: true
 
@@ -72,9 +69,8 @@ large_table:
 # The center of the first layer (layer 1) will be aligned with the clicked block center.
 layered_example:
   item: "v.bamboo_mosaic"
-  place-on-floor: true
-  place-on-wall: false
-  place-on-ceiling: false
+  placement_options:
+    floor: true
   rotate: true
   layers:
     1:

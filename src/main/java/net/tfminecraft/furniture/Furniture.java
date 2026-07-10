@@ -11,7 +11,6 @@ import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
-import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
@@ -23,6 +22,7 @@ import org.joml.Vector3f;
 import net.tfminecraft.InteractibleFurniture;
 import net.tfminecraft.loaders.FurnitureLoader;
 import net.tfminecraft.manager.handlers.FurnitureBreakHandler;
+import net.tfminecraft.manager.handlers.InteractionHandler;
 
 /**
  * Represents a placed furniture instance in the world.
@@ -48,6 +48,7 @@ public class Furniture {
     private boolean firstCarryTick = true;
     private Location lastLoc = null;
     private Location baseResetLoc = null;
+    private UUID interactionEntityId;
 
     public Furniture(String typeId, Location loc, UUID entityId) {
         this(typeId, loc, entityId, null, null);
@@ -76,6 +77,26 @@ public class Furniture {
 
     public UUID getEntityId() {
         return entityId;
+    }
+
+    public UUID getInteractionEntityId() {
+        return interactionEntityId;
+    }
+
+    public void setInteractionEntityId(UUID interactionEntityId) {
+        this.interactionEntityId = interactionEntityId;
+    }
+
+    public void spawnInteractionEntity() {
+        InteractionHandler.spawnInteraction(this);
+    }
+
+    public void removeInteractionEntity() {
+        InteractionHandler.removeInteraction(this);
+    }
+
+    public void updateInteractionPosition() {
+        InteractionHandler.updateInteractionPosition(this);
     }
 
     public java.util.List<Block> getBarrierBlocks() {
@@ -119,6 +140,7 @@ public class Furniture {
 
         originBlockFace = null;
         originBlockLocation = null;
+        removeInteractionEntity();
         holder = p;
 
         firstCarryTick = true;
@@ -153,6 +175,7 @@ public class Furniture {
             slotDisplay.setTransformation(t);
         }
         newDisplay.remove();
+        spawnInteractionEntity();
     }
 
     private Vector getHolderMovement() {
@@ -231,6 +254,7 @@ public class Furniture {
             for (FurnitureSlot slot : activeSlots.values()) {
                 slot.followParentTransform(base);
             }
+            updateInteractionPosition();
         }
     }
 

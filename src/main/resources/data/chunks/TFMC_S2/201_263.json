@@ -1,0 +1,84 @@
+{
+  "furniture": [
+    {
+      "originBlockFace": "UP",
+      "originBlock": {
+        "world": "TFMC_S2",
+        "x": 3229.0,
+        "y": 588.0,
+        "z": 4216.0
+      },
+      "entityId": "a3087545-5970-4cbc-a4bc-8d16b1ec8966",
+      "location": {
+        "world": "TFMC_S2",
+        "x": 3229.5,
+        "y": 589.5,
+        "z": 4216.5
+      },
+      "id": "cutting_board",
+      "type": "cutting_board"
+    },
+    {
+      "originBlockFace": "UP",
+      "originBlock": {
+        "world": "TFMC_S2",
+        "x": 3230.0,
+        "y": 588.0,
+        "z": 4216.0
+      },
+      "entityId": "88895de0-6da3-477a-850f-1d92b4160c69",
+      "location": {
+        "world": "TFMC_S2",
+        "x": 3230.5,
+        "y": 589.5,
+        "z": 4216.5
+      },
+      "id": "frying_pan",
+      "type": "frying_pan"
+    },
+    {
+      "originBlockFace": "UP",
+      "activeSlots": {
+        "input_2": {
+          "displayStandId": "cf3561c0-a87d-4593-a03a-550ea4608d18"
+        },
+        "input_4": {
+          "displayStandId": "03e2679a-2ebf-4139-813c-c492346edbe6"
+        }
+      },
+      "originBlock": {
+        "world": "TFMC_S2",
+        "x": 3228.0,
+        "y": 588.0,
+        "z": 4216.0
+      },
+      "entityId": "a3e0ccb1-7f64-4c71-9e02-47d0c1d13ff9",
+      "location": {
+        "world": "TFMC_S2",
+        "x": 3228.5,
+        "y": 589.5,
+        "z": 4216.5
+      },
+      "id": "butter_plate",
+      "type": "butter_plate"
+    },
+    {
+      "originBlockFace": "NORTH",
+      "originBlock": {
+        "world": "TFMC_S2",
+        "x": 3228.0,
+        "y": 590.0,
+        "z": 4217.0
+      },
+      "entityId": "1a3e403c-f19c-47b8-8dbd-842146b1ed9e",
+      "location": {
+        "world": "TFMC_S2",
+        "x": 3228.5,
+        "y": 590.5,
+        "z": 4216.5
+      },
+      "id": "tool_shelf",
+      "type": "tool_shelf"
+    }
+  ]
+}

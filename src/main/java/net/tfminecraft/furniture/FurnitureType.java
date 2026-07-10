@@ -3,9 +3,12 @@ package net.tfminecraft.furniture;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.util.Vector;
 
@@ -13,6 +16,7 @@ import net.tfminecraft.enums.Display;
 import net.tfminecraft.enums.SoundEffect;
 import net.tfminecraft.furniture.data.DisplayData;
 import net.tfminecraft.furniture.data.FurnitureDataContainer;
+import net.tfminecraft.furniture.data.InteractionData;
 import net.tfminecraft.furniture.data.ModelData;
 
 /**
@@ -25,26 +29,46 @@ public class FurnitureType {
     private final String itemPath; // TLibs item path used to check held item
     private final boolean placeOnFloor;
     private final boolean placeOnWall;
-    private final boolean placeOnCeiling;
+    private final boolean placeOnRoof;
     private final boolean rotateToPlayer; // rotate to face player at 45-degree increments
     private final boolean solid; // legacy: place a single barrier block at the furniture location
     private final boolean pickup; //allow picking up the furniture with right click (if slots are empty)
+    private final boolean placeInside; // anchor to clicked block center instead of block above
+    private final Set<Material> allowedBlocks; // empty = any block; non-empty = whitelist
     private final List<boolean[][]> layers; // parsed layers (each is size x size boolean matrix)
     private final Map<String, FurnitureSlot> slots; // slot id -> slot definition
     private final FurnitureDataContainer data;
     private final Map<SoundEffect, String> soundEffects = new HashMap<>();
     private final DisplayData displayData;
+    private final InteractionData interactionData;
 
     public FurnitureType(String id, ConfigurationSection cfg) {
         this.id = id;
         this.itemPath = cfg.getString("item", "");
-        this.placeOnFloor = cfg.getBoolean("place-on-floor", true);
-        this.placeOnWall = cfg.getBoolean("place-on-wall", false);
-        this.placeOnCeiling = cfg.getBoolean("place-on-ceiling", false);
+        if (cfg.isConfigurationSection("placement_options")) {
+            ConfigurationSection placement = cfg.getConfigurationSection("placement_options");
+            this.placeOnFloor = placement.getBoolean("floor", false);
+            this.placeOnWall = placement.getBoolean("wall", false);
+            this.placeOnRoof = placement.getBoolean("roof", false);
+        } else {
+            this.placeOnFloor = false;
+            this.placeOnWall = false;
+            this.placeOnRoof = false;
+        }
         this.rotateToPlayer = cfg.getBoolean("rotate", true);
         this.solid = cfg.getBoolean("solid", false);
         this.pickup = cfg.getBoolean("pickup", false);
+        this.placeInside = cfg.getBoolean("place-inside", false);
+        this.allowedBlocks = new HashSet<>();
+        for (String blockName : cfg.getStringList("allowed-blocks")) {
+            try {
+                allowedBlocks.add(Material.valueOf(blockName.toUpperCase()));
+            } catch (IllegalArgumentException ignored) {}
+        }
         this.displayData = cfg.isConfigurationSection("display") ? new DisplayData(cfg.getConfigurationSection("display")) : new DisplayData();
+        this.interactionData = cfg.isConfigurationSection("interaction")
+                ? new InteractionData(cfg.getConfigurationSection("interaction"))
+                : null;
         this.layers = new ArrayList<>();
         this.slots = new HashMap<>();
         // templates map (optional)
@@ -149,7 +173,10 @@ public class FurnitureType {
                     FurnitureSlot slot = new FurnitureSlot(
                             subSlotKey, layer, row, col,
                             offset, whitelist,
-                            displayRot, displayScale, displayPos, null, subSlotCfg.contains("interactible") ? subSlotCfg.getBoolean("interactible") : !whitelist.isEmpty());
+                            displayRot, displayScale, displayPos, null,
+                            subSlotCfg.contains("interactible")
+                                    ? subSlotCfg.getBoolean("interactible")
+                                    : whitelist != null && !whitelist.isEmpty());
                     slots.put(subSlotKey, slot);
                 }
             }
@@ -239,12 +266,15 @@ public class FurnitureType {
         this.itemPath = other.itemPath;
         this.placeOnFloor = other.placeOnFloor;
         this.placeOnWall = other.placeOnWall;
-        this.placeOnCeiling = other.placeOnCeiling;
+        this.placeOnRoof = other.placeOnRoof;
         this.rotateToPlayer = other.rotateToPlayer;
         this.solid = other.solid;
         this.pickup = other.pickup;
+        this.placeInside = other.placeInside;
+        this.allowedBlocks = new HashSet<>(other.allowedBlocks);
         this.data = new FurnitureDataContainer(other.data.getModelData());
         this.displayData = other.displayData;
+        this.interactionData = other.interactionData != null ? new InteractionData(other.interactionData) : null;
 
         for(Map.Entry<SoundEffect, String> entry : other.soundEffects.entrySet()) {
             this.soundEffects.put(entry.getKey(), entry.getValue());
@@ -295,13 +325,19 @@ public class FurnitureType {
     public String getItemPath() { return itemPath; }
     public boolean canPlaceOnFloor() { return placeOnFloor; }
     public boolean canPlaceOnWall() { return placeOnWall; }
-    public boolean canPlaceOnCeiling() { return placeOnCeiling; }
+    public boolean canPlaceOnRoof() { return placeOnRoof; }
     public boolean shouldRotateToPlayer() { return rotateToPlayer; }
     public boolean isSolid() { return solid; }
     public List<boolean[][]> getLayers() { return layers; }
     public Map<String, FurnitureSlot> getSlots() { return slots; }
     public boolean canPickup() { return pickup; }
+    public boolean canPlaceInside() { return placeInside; }
+    public boolean isAllowedBlock(Material material) {
+        return allowedBlocks.isEmpty() || allowedBlocks.contains(material);
+    }
     public DisplayData getDisplayData() { return displayData; }
+    public boolean hasInteraction() { return interactionData != null; }
+    public InteractionData getInteractionData() { return interactionData; }
     
     /**
      * Get a specific slot by its ID

@@ -1,0 +1,870 @@
+frying_pan:
+  item: "ia.tfmc_cooking:frying_pan"
+  model:
+    display: item_display
+    model: ia.tfmc_cooking:frying_pan
+  placement_options:
+    floor: true
+  rotate: true
+  pickup: true
+  sound:
+    place: block.wood.place
+    break: block.wood.break
+  slots:
+    templates:
+      pan_slot:
+        whitelist:
+          - "c.vegetable(type=vegetable_cut)"
+          - "c.meat(type=meat_1)"
+        display:
+          rotation:
+            x: 0
+            y: 90
+            z: 0
+          scale:
+            x: 0.6
+            y: 0.6
+            z: 0.6
+          position:
+            x: 0
+            y: -0.1
+            z: 0
+    center:
+      left:
+        template: pan_slot
+        offset:
+          x: 0.2
+          y: 0
+          z: 0
+      right:
+        template: pan_slot
+        offset:
+          x: -0.2
+          y: 0
+          z: 0
+      butter:
+        interactible: false
+        template: pan_slot
+        offset:
+          x: 0
+          y: 0.13
+          z: 0
+        display:
+          rotation:
+            x: 0
+            y: 0
+            z: 0
+          scale:
+            x: 0.8
+            y: 0.8
+            z: 0.8
+
+saucepan:
+  item: "ia.tfmc_cooking:saucepan"
+  model:
+    display: item_display
+    model: ia.tfmc_cooking:saucepan
+  placement_options:
+    floor: true
+  rotate: true
+  pickup: true
+  sound:
+    place: block.wood.place
+    break: block.wood.break
+  display:
+    scale:
+      x: 0.6
+      y: 0.6
+      z: 0.6
+    position:
+      x: 0
+      y: -0.2
+      z: 0
+  slots:
+    templates:
+      hidden_input:
+        display:
+          rotation:
+            x: 0
+            y: 90
+            z: 0
+          scale:
+            x: 0.6
+            y: 0.6
+            z: 0.6
+          position:
+            x: 0
+            y: -0.1
+            z: 0
+      liquid_display:
+        display:
+          rotation:
+            x: 0
+            y: 0
+            z: 0
+          scale:
+            x: 0.75
+            y: 0.75
+            z: 0.75
+          position:
+            x: 0
+            y: -0.12
+            z: 0
+    center:
+      input_1:
+        interactible: false
+        template: hidden_input
+        offset:
+          x: 0
+          y: 0
+          z: 0
+        display:
+          scale:
+            x: 0
+            y: 0
+            z: 0
+      input_2:
+        interactible: false
+        template: hidden_input
+        offset:
+          x: 0
+          y: 0
+          z: 0
+        display:
+          scale:
+            x: 0
+            y: 0
+            z: 0
+      liquid:
+        interactible: false
+        template: liquid_display
+        offset:
+          x: 0
+          y: -0.12
+          z: 0
+
+pot:
+  item: "ia.tfmc_cooking:pot"
+  model:
+    display: item_display
+    model: ia.tfmc_cooking:pot
+  placement_options:
+    floor: true
+  rotate: true
+  pickup: true
+  sound:
+    place: block.wood.place
+    break: block.wood.break
+  display:
+    position:
+      x: 0
+      y: 0
+      z: 0
+  slots:
+    templates:
+      pot_slot:
+        whitelist:
+          - "c.vegetable(type=vegetable_cut)"
+          - "c.meat(type=meat_1)"
+        display:
+          rotation:
+            x: 0
+            y: 90
+            z: 0
+          scale:
+            x: 0.75
+            y: 0.75
+            z: 0.75
+          position:
+            x: 0
+            y: 0.4
+            z: 0
+    center:
+      ladle_slot:
+        template: pot_slot
+        whitelist:
+          - "ia.tfmc_cooking:ladle"
+        offset:
+          x: -0.5
+          y: -0.2
+          z: 0
+        display:
+          rotation:
+            x: 90
+            y: -45
+            z: 90
+          scale:
+            x: 0.75
+            y: 0.75
+            z: 0.75
+      input_1:
+        interactible: false
+        template: pot_slot
+        offset:
+          x: 0
+          y: 0
+          z: 0
+        display:
+          scale:
+            x: 0.75
+            y: 0.75
+            z: 0.75
+      input_2:
+        interactible: false
+        template: pot_slot
+        offset:
+          x: 0
+          y: 0
+          z: 0
+        display:
+          rotation:
+            x: 0
+            y: -30
+            z: 0
+          scale:
+            x: 0.75
+            y: 0.75
+            z: 0.75
+      input_3:
+        interactible: false
+        template: pot_slot
+        offset:
+          x: 0
+          y: 0
+          z: 0
+        display:
+          rotation:
+            x: 0
+            y: 50
+            z: 0
+          scale:
+            x: 0.75
+            y: 0.75
+            z: 0.75
+      input_4:
+        interactible: false
+        template: pot_slot
+        offset:
+          x: 0
+          y: 0
+          z: 0
+        display:
+          rotation:
+            x: 0
+            y: -20
+            z: 0
+          scale:
+            x: 0.75
+            y: 0.75
+            z: 0.75
+      input_5:
+        interactible: false
+        template: pot_slot
+        offset:
+          x: 0
+          y: 0
+          z: 0
+        display:
+          rotation:
+            x: 0
+            y: 15
+            z: 0
+          scale:
+            x: 0.75
+            y: 0.75
+            z: 0.75
+      liquid:
+        interactible: false
+        template: pot_slot
+        offset:
+          x: 0
+          y: -0.1
+          z: 0
+        display:
+          rotation:
+            x: 0
+            y: 0
+            z: 0
+          scale:
+            x: 0.75
+            y: 0.75
+            z: 0.75
+
+bowl:
+  item: "ia.tfmc_cooking:bowl"
+  model:
+    display: item_display
+    model: ia.tfmc_cooking:bowl
+  placement_options:
+    floor: true
+  rotate: true
+  pickup: true
+  sound:
+    place: block.wood.place
+    break: block.wood.break
+  slots:
+    templates:
+      bowl_slot:
+        whitelist:
+          - "c.vegetable(type=vegetable_cut)"
+          - "c.meat(type=meat_1)"
+        display:
+          rotation:
+            x: 0
+            y: 90
+            z: 0
+          scale:
+            x: 0.6
+            y: 0.6
+            z: 0.6
+          position:
+            x: 0
+            y: 0.06
+            z: 0
+    center:
+      food_item:
+        interactible: false
+        template: bowl_slot
+        offset:
+          x: 0
+          y: -0.3
+          z: 0
+        display:
+          scale:
+            x: 0
+            y: 0
+            z: 0
+      input_1:
+        interactible: false
+        template: bowl_slot
+        offset:
+          x: 0
+          y: 0
+          z: 0
+      input_2:
+        interactible: false
+        template: bowl_slot
+        offset:
+          x: 0
+          y: 0
+          z: 0
+        display:
+          rotation:
+            x: 0
+            y: -30
+            z: 0
+      input_3:
+        interactible: false
+        template: bowl_slot
+        offset:
+          x: 0
+          y: 0
+          z: 0
+        display:
+          rotation:
+            x: 0
+            y: 50
+            z: 0
+      input_4:
+        interactible: false
+        template: bowl_slot
+        offset:
+          x: 0
+          y: 0
+          z: 0
+        display:
+          rotation:
+            x: 0
+            y: -20
+            z: 0
+      input_5:
+        interactible: false
+        template: bowl_slot
+        offset:
+          x: 0
+          y: 0
+          z: 0
+        display:
+          rotation:
+            x: 0
+            y: 15
+            z: 0
+      liquid:
+        interactible: false
+        template: bowl_slot
+        offset:
+          x: 0
+          y: -0.1
+          z: 0
+        display:
+          rotation:
+            x: 0
+            y: 0
+            z: 0
+
+cutting_board:
+  item: "ia.tfmc_cooking:cutting_board"
+  model:
+    display: item_display
+    model: ia.tfmc_cooking:cutting_board
+  placement_options:
+    floor: true
+  rotate: true
+  pickup: true
+  sound:
+    place: block.wood.place
+    break: block.wood.break
+  slots:
+    templates:
+      board_slot:
+        whitelist:
+          - "c.vegetable(type=vegetable_1)"
+          - "c.vegetable(type=vegetable_cut)"
+          - "c.vegetable(type=vegetable_chop_only)"
+          - "c.garnish(type=vegetable_chopped)"
+          - "c.garnish(type=garnish_chopped)"
+          - "c.spice"
+          - "c.meat(type=roast)"
+        display:
+          rotation:
+            x: 0
+            y: 0
+            z: 0
+          scale:
+            x: 0.6
+            y: 0.6
+            z: 0.6
+          position:
+            x: 0
+            y: -0.07
+            z: 0
+    center:
+      input_1:
+        template: board_slot
+        offset:
+          x: 0.2
+          y: 0
+          z: 0
+      input_2:
+        template: board_slot
+        offset:
+          x: -0.2
+          y: 0
+          z: 0
+
+butter_churn:
+  item: "ia.tfmc_cooking:butter_churn"
+  model:
+    display: item_display
+    model: ia.tfmc_cooking:butter_churn
+  placement_options:
+    floor: true
+  rotate: true
+  pickup: true
+  sound:
+    place: block.wood.place
+    break: block.wood.break
+  slots:
+    templates:
+      board_slot:
+        whitelist:
+          - "v.milk_bucket"
+        display:
+          rotation:
+            x: 0
+            y: 0
+            z: 0
+          scale:
+            x: 0.6
+            y: 0.6
+            z: 0.6
+          position:
+            x: 0
+            y: -0.07
+            z: 0
+    center:
+      input_1:
+        template: board_slot
+        offset:
+          x: 0
+          y: 0
+          z: 0
+        display:
+          rotation:
+            x: 0
+            y: 0
+            z: 0
+          scale:
+            x: 0
+            y: 0
+            z: 0
+      stick:
+        interactible: false
+        template: board_slot
+        offset:
+          x: 0.05
+          y: 0.5
+          z: 0
+        display:
+          rotation:
+            x: 0
+            y: 0
+            z: -45
+          scale:
+            x: 1.1
+            y: 1.1
+            z: 1.1
+
+butter_plate:
+  item: "ia.tfmc_cooking:butter_plate"
+  model:
+    display: item_display
+    model: ia.tfmc_cooking:butter_plate
+  placement_options:
+    floor: true
+  rotate: true
+  pickup: true
+  sound:
+    place: block.wood.place
+    break: block.wood.break
+  slots:
+    templates:
+      board_slot:
+        whitelist:
+          - "ia.tfmc_cooking:butter"
+        display:
+          rotation:
+            x: 0
+            y: 0
+            z: 0
+          scale:
+            x: 1
+            y: 1
+            z: 1
+          position:
+            x: 0
+            y: 0
+            z: 0
+    center:
+      input_1:
+        template: board_slot
+        offset:
+          x: 0
+          y: 0.05
+          z: -0.1875
+      input_2:
+        template: board_slot
+        offset:
+          x: 0
+          y: 0.05
+          z: -0.0625
+      input_3:
+        template: board_slot
+        offset:
+          x: 0
+          y: 0.05
+          z: 0.0625
+      input_4:
+        template: board_slot
+        offset:
+          x: 0
+          y: 0.05
+          z: 0.1875
+
+plate:
+  item: "ia.tfmc_cooking:plate"
+  model:
+    display: item_display
+    model: ia.tfmc_cooking:plate
+  placement_options:
+    floor: true
+  rotate: true
+  pickup: true
+  sound:
+    place: block.wood.place
+    break: block.wood.break
+  display:
+    scale:
+      x: 0.8
+      y: 0.8
+      z: 0.8
+    position:
+      x: 0
+      y: -0.1
+      z: 0
+  slots:
+    templates:
+      board_slot:
+        whitelist:
+          - "c.vegetable"
+          - "c.meat"
+          - "c.fruit"
+        display:
+          rotation:
+            x: 0
+            y: 0
+            z: 0
+          scale:
+            x: 0.6
+            y: 0.6
+            z: 0.6
+          position:
+            x: 0
+            y: -0.2
+            z: 0
+    center:
+      item_1:
+        template: board_slot
+        offset:
+          x: 0.1
+          y: 0
+          z: 0.17
+        display:
+          rotation:
+            x: 0
+            y: 48
+            z: 0
+      item_2:
+        template: board_slot
+        offset:
+          x: 0.1
+          y: 0
+          z: -0.12
+        display:
+          rotation:
+            x: 0
+            y: 112
+            z: 0
+      item_3:
+        template: board_slot
+        offset:
+          x: -0.2
+          y: 0
+          z: 0
+        display:
+          rotation:
+            x: 0
+            y: 95
+            z: 0
+      sauce:
+        template: board_slot
+        interactible: false
+        offset:
+          x: 0
+          y: 0.1
+          z: 0
+        display:
+          scale:
+            x: 0.9
+            y: 0.9
+            z: 0.9
+
+bucket:
+  item: "ia.tfmc_cooking:bucket"
+  model:
+    display: item_display
+    model: ia.tfmc_cooking:bucket
+  placement_options:
+    floor: true
+  rotate: true
+  pickup: true
+  sound:
+    place: block.wood.place
+    break: block.wood.break
+  display:
+    position:
+      x: 0
+      y: 0
+      z: 0
+  slots:
+    templates:
+      pot_slot:
+        whitelist:
+          - "c.vegetable(type=vegetable_cut)"
+          - "c.meat(type=meat_1)"
+        display:
+          rotation:
+            x: 0
+            y: 90
+            z: 0
+          scale:
+            x: 0.75
+            y: 0.75
+            z: 0.75
+          position:
+            x: 0
+            y: 0.4
+            z: 0
+    center:
+      ladle_slot:
+        template: pot_slot
+        whitelist:
+          - "ia.tfmc_cooking:ladle"
+        offset:
+          x: -0.5
+          y: -0.2
+          z: 0
+        display:
+          rotation:
+            x: 90
+            y: -45
+            z: 90
+          scale:
+            x: 0.75
+            y: 0.75
+            z: 0.75
+      input_1:
+        interactible: false
+        template: pot_slot
+        offset:
+          x: 0
+          y: 0
+          z: 0
+        display:
+          scale:
+            x: 0.75
+            y: 0.75
+            z: 0.75
+      input_2:
+        interactible: false
+        template: pot_slot
+        offset:
+          x: 0
+          y: 0
+          z: 0
+        display:
+          rotation:
+            x: 0
+            y: -30
+            z: 0
+          scale:
+            x: 0.75
+            y: 0.75
+            z: 0.75
+      input_3:
+        interactible: false
+        template: pot_slot
+        offset:
+          x: 0
+          y: 0
+          z: 0
+        display:
+          rotation:
+            x: 0
+            y: 50
+            z: 0
+          scale:
+            x: 0.75
+            y: 0.75
+            z: 0.75
+      input_4:
+        interactible: false
+        template: pot_slot
+        offset:
+          x: 0
+          y: 0
+          z: 0
+        display:
+          rotation:
+            x: 0
+            y: -20
+            z: 0
+          scale:
+            x: 0.75
+            y: 0.75
+            z: 0.75
+      input_5:
+        interactible: false
+        template: pot_slot
+        offset:
+          x: 0
+          y: 0
+          z: 0
+        display:
+          rotation:
+            x: 0
+            y: 15
+            z: 0
+          scale:
+            x: 0.75
+            y: 0.75
+            z: 0.75
+      liquid:
+        interactible: false
+        template: pot_slot
+        offset:
+          x: 0
+          y: -0.1
+          z: 0
+        display:
+          rotation:
+            x: 0
+            y: 0
+            z: 0
+          scale:
+            x: 0.75
+            y: 0.75
+            z: 0.75
+
+fire_pit:
+  item: "ia.tfmc_cooking:fire_pit"
+  model:
+    display: item_display
+    model: ia.tfmc_cooking:fire_pit
+  placement_options:
+    floor: true
+  place-inside: true
+  allowed-blocks:
+    - CAMPFIRE
+    - SOUL_CAMPFIRE
+  rotate: true
+  pickup: true
+  sound:
+    place: block.wood.place
+    break: block.wood.break
+  display:
+    position:
+      x: 0
+      y: -0.2
+      z: 0
+  interaction:
+    width: 1.5
+    height: 2.0
+    offset:
+      x: 0
+      y: 0.5
+      z: 0
+  slots:
+    templates:
+      pit_slot:
+        display:
+          rotation:
+            x: 0
+            y: 0
+            z: 0
+          scale:
+            x: 0.8
+            y: 0.8
+            z: 0.8
+          position:
+            x: 0
+            y: 0
+            z: 0
+    center:
+      content:
+        interactible: true
+        template: pit_slot
+        offset:
+          x: 0
+          y: 1.0
+          z: 0
+        whitelist:
+          - "c.meat(type=meat_1)"
+          - "c.meat(type=roast)"
+      turner:
+        interactible: false
+        template: pit_slot
+        offset:
+          x: 0.4
+          y: 1.0
+          z: 0

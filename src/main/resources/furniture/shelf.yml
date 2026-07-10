@@ -1,0 +1,54 @@
+tool_shelf:
+  item: "ia.tfmc_cooking:tool_shelf"
+  placement_options:
+    wall: true
+  rotate: false
+  pickup: true
+  sound:
+    place: block.wood.place
+    break: block.wood.break
+  model:
+    display: ITEM_DISPLAY
+    model: ia.tfmc_cooking:tool_shelf
+  slots:
+    # Define a reusable template for shelf slots so we only override offsets per-slot
+    templates:
+      shelf_slot:
+        whitelist:
+          - "ia.tfmc_cooking:cutting_knife"
+          - "ia.tfmc_cooking:ladle"
+          - "ia.tfmc_cooking:masher"
+        display:
+          rotation:
+            x: -90
+            y: 0
+            z: 315
+          scale:
+            x: 0.6
+            y: 0.6
+            z: 0.6
+          position:
+            x: 0
+            y: -0.55
+            z: 0
+
+    # Use a location group ‘center’ and reference the template for each named slot
+    center:
+      left:
+        template: shelf_slot
+        offset:
+          x: 0.3
+          y: 0.2
+          z: 0
+      middle:
+        template: shelf_slot
+        offset:
+          x: 0
+          y: 0.2
+          z: 0
+      right:
+        template: shelf_slot
+        offset:
+          x: -0.3
+          y: 0.2
+          z: 0

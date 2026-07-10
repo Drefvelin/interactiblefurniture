@@ -14,7 +14,7 @@ public class FurnitureSlotItemAddEvent extends PlayerEvent implements Cancellabl
     private static final HandlerList handlers = new HandlerList();
     private final Furniture furniture;
     private final FurnitureSlot slot;
-    private final ItemStack item;
+    private ItemStack item;
     private boolean cancelled;
     private DisplayData display;
 
@@ -35,6 +35,10 @@ public class FurnitureSlotItemAddEvent extends PlayerEvent implements Cancellabl
 
     public ItemStack getItem() {
         return item;
+    }
+
+    public void setItem(ItemStack i) {
+        item = i;
     }
 
     public DisplayData getDisplayData() {
