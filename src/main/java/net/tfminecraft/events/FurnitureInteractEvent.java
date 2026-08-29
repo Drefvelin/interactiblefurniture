@@ -7,16 +7,16 @@ import org.bukkit.event.player.PlayerEvent;
 import org.bukkit.util.Vector;
 
 import net.tfminecraft.furniture.Furniture;
-import net.tfminecraft.furniture.FurnitureSlot;
+import net.tfminecraft.furniture.SlotDefinition;
 
 public class FurnitureInteractEvent extends PlayerEvent implements Cancellable{
     private static final HandlerList handlers = new HandlerList();
     private final Furniture furniture;
-    private final FurnitureSlot hitSlot;
+    private final SlotDefinition hitSlot;
     private final Vector clickPoint;
     private boolean cancelled;
 
-    public FurnitureInteractEvent(Player player, Furniture furniture, FurnitureSlot hitSlot, Vector clickPoint) {
+    public FurnitureInteractEvent(Player player, Furniture furniture, SlotDefinition hitSlot, Vector clickPoint) {
         super(player);
         this.furniture = furniture;
         this.hitSlot = hitSlot;
@@ -31,7 +31,7 @@ public class FurnitureInteractEvent extends PlayerEvent implements Cancellable{
         return furniture;
     }
 
-    public FurnitureSlot getHitSlot() {
+    public SlotDefinition getHitSlot() {
         return hitSlot;
     }
 

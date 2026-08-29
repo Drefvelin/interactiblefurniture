@@ -13,11 +13,14 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import me.Plugins.TLibs.TLibs;
+import net.tfminecraft.InteractibleFurniture;
 import net.tfminecraft.events.FurnitureInteractEvent;
 import net.tfminecraft.events.FurnitureSlotItemAddEvent;
 import net.tfminecraft.events.FurnitureSlotItemTakeEvent;
 import net.tfminecraft.furniture.Furniture;
-import net.tfminecraft.furniture.FurnitureSlot;
+import net.tfminecraft.furniture.FurnitureType;
+import net.tfminecraft.furniture.PlacedSlot;
+import net.tfminecraft.furniture.SlotDefinition;
 import net.tfminecraft.furniture.data.DisplayData;
 import net.tfminecraft.loaders.SoundLoader;
 import net.tfminecraft.utils.CoordinateUtils;
@@ -27,16 +30,20 @@ import java.util.Collection;
 import java.util.List;
 
 public class SlotInteractionHandler {
-    public static boolean handleSlotInteraction(Player player, Block clicked, Action action, Furniture furniture, 
+    public static boolean handleSlotInteraction(Player player, Block clicked, Action action, Furniture furniture,
             Entity furnitureEntity, org.bukkit.block.BlockFace clickedFace) {
-        List<FurnitureSlot> possibleSlots = new ArrayList<>(furniture.getType().getSlots().values());
+        FurnitureType type = furniture.getType();
+        if (type == null) return false;
+        List<SlotDefinition> possibleSlots = new ArrayList<>(type.getSlots().values());
         if (possibleSlots.isEmpty()) {
             FurnitureInteractEvent event = new FurnitureInteractEvent(player, furniture);
             Bukkit.getPluginManager().callEvent(event);
             return false;
         }
 
-        FurnitureSlot closestSlot = findClosestInteractibleSlot(player.getInventory().getItemInMainHand(), player, clicked, clickedFace, furniture, furnitureEntity, possibleSlots);
+        SlotDefinition closestSlot = findClosestInteractibleSlot(
+                player.getInventory().getItemInMainHand(), player, clicked, clickedFace,
+                furniture, furnitureEntity, possibleSlots);
         if (closestSlot == null) {
             return false;
         }
@@ -45,18 +52,20 @@ public class SlotInteractionHandler {
     }
 
     public static boolean handleSlotInteraction(Player player, Furniture furniture, ItemDisplay furnitureEntity,
-            FurnitureSlot targetSlot, Action action) {
+            SlotDefinition targetSlot, Action action) {
         return handleSlotAction(player, null, action, furniture, furnitureEntity, targetSlot);
     }
 
-    public static FurnitureSlot findClosestSlotForHit(Vector clickPoint, Furniture furniture, ItemDisplay parent) {
-        Collection<FurnitureSlot> slots = furniture.getType().getSlots().values();
-        if (slots.isEmpty() || clickPoint == null) return null;
+    public static SlotDefinition findClosestSlotForHit(Vector clickPoint, Furniture furniture, ItemDisplay parent) {
+        FurnitureType type = furniture.getType();
+        if (type == null || clickPoint == null) return null;
+        Collection<SlotDefinition> slots = type.getSlots().values();
+        if (slots.isEmpty()) return null;
 
-        FurnitureSlot closest = null;
+        SlotDefinition closest = null;
         double closestDist = Double.MAX_VALUE;
 
-        for (FurnitureSlot slot : slots) {
+        for (SlotDefinition slot : slots) {
             Location slotLoc = slot.computeDisplayLocation(
                     furniture.getLoc(),
                     parent,
@@ -71,18 +80,18 @@ public class SlotInteractionHandler {
         return closest;
     }
 
-    private static FurnitureSlot findClosestInteractibleSlot(ItemStack item, Player player, Block clicked, BlockFace face,
-            Furniture furniture, Entity furnitureEntity, List<FurnitureSlot> slots) {
+    private static SlotDefinition findClosestInteractibleSlot(ItemStack item, Player player, Block clicked, BlockFace face,
+            Furniture furniture, Entity furnitureEntity, List<SlotDefinition> slots) {
         Vector clickPoint = CoordinateUtils.calculateClickPoint(player, clicked, face);
         if (clickPoint == null) return null;
 
-        FurnitureSlot closest = null;
+        SlotDefinition closest = null;
         double closestDist = Double.MAX_VALUE;
 
-        for (FurnitureSlot slot : slots) {
-            if(!slot.canInteract(item)) continue;
+        for (SlotDefinition slot : slots) {
+            if (!slot.canInteract(item)) continue;
             Location slotLoc = slot.computeDisplayLocation(
-                furniture.getLoc(), 
+                furniture.getLoc(),
                 (ItemDisplay) furnitureEntity,
                 new DisplayData()
             );
@@ -98,8 +107,8 @@ public class SlotInteractionHandler {
         return closest;
     }
 
-    private static boolean handleSlotAction(Player player, Block clicked, Action action, 
-            Furniture furniture, Entity furnitureEntity, FurnitureSlot slot) {
+    private static boolean handleSlotAction(Player player, Block clicked, Action action,
+            Furniture furniture, Entity furnitureEntity, SlotDefinition slot) {
         if (action == Action.RIGHT_CLICK_BLOCK) {
             return handleRightClick(player, furniture, furnitureEntity, slot);
         } else if (action == Action.LEFT_CLICK_BLOCK && clicked != null) {
@@ -108,8 +117,8 @@ public class SlotInteractionHandler {
         return false;
     }
 
-    private static boolean handleRightClick(Player player, Furniture furniture, 
-            Entity furnitureEntity, FurnitureSlot slot) {
+    private static boolean handleRightClick(Player player, Furniture furniture,
+            Entity furnitureEntity, SlotDefinition slot) {
         ItemStack held = player.getInventory().getItemInMainHand();
 
         if (held == null || held.getType() == Material.AIR) {
@@ -119,18 +128,18 @@ public class SlotInteractionHandler {
         return tryPlaceItem(player, furniture, furnitureEntity, slot, held);
     }
 
-    private static boolean tryTakeItem(Player player, Furniture furniture, FurnitureSlot slot) {
+    private static boolean tryTakeItem(Player player, Furniture furniture, SlotDefinition slot) {
         boolean[] taken = {false};
 
         furniture.getActiveSlot(slot.getId()).ifPresent(activeSlot -> {
             ItemStack slotItem = activeSlot.getCurrentItem();
             if (slotItem == null) {
-                ItemDisplay displayStand = (ItemDisplay)Bukkit.getEntity(activeSlot.getDisplayStandId());
+                ItemDisplay displayStand = (ItemDisplay) Bukkit.getEntity(activeSlot.getDisplayStandId());
                 if (displayStand == null) return;
                 slotItem = displayStand.getItemStack();
             }
 
-            if(slotItem == null) return;
+            if (slotItem == null) return;
 
             FurnitureSlotItemTakeEvent event = new FurnitureSlotItemTakeEvent(player, furniture, slot, slotItem.clone());
             Bukkit.getPluginManager().callEvent(event);
@@ -138,6 +147,7 @@ public class SlotInteractionHandler {
                 return;
             }
             furniture.removeActiveSlot(slot.getId());
+            InteractibleFurniture.getInstance().getFurnitureManager().persistFurniture(furniture);
             ItemStack item = event.getItem();
 
             boolean merged = false;
@@ -178,11 +188,9 @@ public class SlotInteractionHandler {
         return taken[0];
     }
 
-
-    private static boolean tryPlaceItem(Player player, Furniture furniture, 
-            Entity furnitureEntity, FurnitureSlot slot, ItemStack held) {
-        if (!slot.getWhitelist().stream()
-                .anyMatch(path -> TLibs.getItemAPI().getChecker().checkItemWithPath(held, path))) {
+    private static boolean tryPlaceItem(Player player, Furniture furniture,
+            Entity furnitureEntity, SlotDefinition slot, ItemStack held) {
+        if (!slot.isItemAllowed(held)) {
             return false;
         }
 
@@ -203,11 +211,12 @@ public class SlotInteractionHandler {
             return false;
         }
 
-        slot.spawnDisplayStand(furniture.getLoc(), toPlace, (ItemDisplay) furnitureEntity, event.getDisplayData());
-        furniture.addActiveSlot(slot);
+        PlacedSlot placed = furniture.getOrCreatePlacedSlot(slot.getId());
+        placed.spawnDisplayStand(furniture.getLoc(), toPlace, (ItemDisplay) furnitureEntity, event.getDisplayData());
+        InteractibleFurniture.getInstance().getFurnitureManager().persistFurniture(furniture);
         String path = TLibs.getItemAPI().getChecker().getAsStringPath(toPlace);
         String sound = "minecraft:entity.item_frame.add_item";
-        if(SoundLoader.has(path)) {
+        if (SoundLoader.has(path)) {
             sound = SoundLoader.getByString(path);
         }
         furniture.getLoc().getWorld().playSound(furniture.getLoc(), sound, 1, 1);
@@ -215,12 +224,13 @@ public class SlotInteractionHandler {
         return true;
     }
 
-    private static boolean handleLeftClick(Player player, Block clicked, Furniture furniture, FurnitureSlot slot) {
+    private static boolean handleLeftClick(Player player, Block clicked, Furniture furniture, SlotDefinition slot) {
         boolean[] removed = {false};
         furniture.getActiveSlot(slot.getId()).ifPresent(activeSlot -> {
             ItemStack item = activeSlot.getCurrentItem();
             if (item != null) {
                 furniture.removeActiveSlot(slot.getId());
+                InteractibleFurniture.getInstance().getFurnitureManager().persistFurniture(furniture);
                 clicked.getWorld().dropItemNaturally(clicked.getLocation(), item);
                 removed[0] = true;
             }

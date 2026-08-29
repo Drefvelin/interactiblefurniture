@@ -36,7 +36,7 @@ public class FurnitureType {
     private final boolean placeInside; // anchor to clicked block center instead of block above
     private final Set<Material> allowedBlocks; // empty = any block; non-empty = whitelist
     private final List<boolean[][]> layers; // parsed layers (each is size x size boolean matrix)
-    private final Map<String, FurnitureSlot> slots; // slot id -> slot definition
+    private final Map<String, SlotDefinition> slots;
     private final FurnitureDataContainer data;
     private final Map<SoundEffect, String> soundEffects = new HashMap<>();
     private final DisplayData displayData;
@@ -169,11 +169,10 @@ public class FurnitureType {
                         }
                     }
 
-                    // Create and store the slot
-                    FurnitureSlot slot = new FurnitureSlot(
+                    SlotDefinition slot = new SlotDefinition(
                             subSlotKey, layer, row, col,
                             offset, whitelist,
-                            displayRot, displayScale, displayPos, null,
+                            displayRot, displayScale, displayPos,
                             subSlotCfg.contains("interactible")
                                     ? subSlotCfg.getBoolean("interactible")
                                     : whitelist != null && !whitelist.isEmpty());
@@ -257,61 +256,6 @@ public class FurnitureType {
         }
     }
 
-    /**
-    * Deep copy constructor.
-    * Creates a full independent clone of the FurnitureType including layers and slots.
-    */
-    public FurnitureType(Furniture f, FurnitureType other) {
-        this.id = other.id;
-        this.itemPath = other.itemPath;
-        this.placeOnFloor = other.placeOnFloor;
-        this.placeOnWall = other.placeOnWall;
-        this.placeOnRoof = other.placeOnRoof;
-        this.rotateToPlayer = other.rotateToPlayer;
-        this.solid = other.solid;
-        this.pickup = other.pickup;
-        this.placeInside = other.placeInside;
-        this.allowedBlocks = new HashSet<>(other.allowedBlocks);
-        this.data = new FurnitureDataContainer(other.data.getModelData());
-        this.displayData = other.displayData;
-        this.interactionData = other.interactionData != null ? new InteractionData(other.interactionData) : null;
-
-        for(Map.Entry<SoundEffect, String> entry : other.soundEffects.entrySet()) {
-            this.soundEffects.put(entry.getKey(), entry.getValue());
-        }
-
-        // Deep copy layers
-        this.layers = new ArrayList<>();
-        for (boolean[][] layer : other.layers) {
-            int size = layer.length;
-            boolean[][] copy = new boolean[size][size];
-            for (int r = 0; r < size; r++) {
-                System.arraycopy(layer[r], 0, copy[r], 0, size);
-            }
-            this.layers.add(copy);
-        }
-
-        // Deep copy slots
-        this.slots = new HashMap<>();
-        for (Map.Entry<String, FurnitureSlot> entry : other.slots.entrySet()) {
-            FurnitureSlot src = entry.getValue();
-            FurnitureSlot copy = new FurnitureSlot(
-                    src.getId(),
-                    src.getLayer(),
-                    src.getRow(),
-                    src.getCol(),
-                    src.getOffset() != null ? src.getOffset().clone() : null,
-                    src.getWhitelist() != null ? new ArrayList<>(src.getWhitelist()) : null,
-                    src.getDisplayRotation() != null ? src.getDisplayRotation().clone() : null,
-                    src.getDisplayScale() != null ? src.getDisplayScale().clone() : null,
-                    src.getDisplayPosition() != null ? src.getDisplayPosition().clone() : null,
-                    f,
-                    src.isInteractible()
-            );
-            this.slots.put(entry.getKey(), copy);
-        }
-    }
-
     public FurnitureDataContainer getData() {
         return data;
     }
@@ -329,7 +273,7 @@ public class FurnitureType {
     public boolean shouldRotateToPlayer() { return rotateToPlayer; }
     public boolean isSolid() { return solid; }
     public List<boolean[][]> getLayers() { return layers; }
-    public Map<String, FurnitureSlot> getSlots() { return slots; }
+    public Map<String, SlotDefinition> getSlots() { return slots; }
     public boolean canPickup() { return pickup; }
     public boolean canPlaceInside() { return placeInside; }
     public boolean isAllowedBlock(Material material) {
@@ -342,16 +286,13 @@ public class FurnitureType {
     /**
      * Get a specific slot by its ID
      */
-    public FurnitureSlot getSlot(String id) {
+    public SlotDefinition getSlot(String id) {
         return slots.get(id);
     }
 
-    /**
-     * Get all slots at a specific layer/row/col position
-     */
-    public List<FurnitureSlot> getSlotsForBlock(int layer, int row, int col) {
-        List<FurnitureSlot> result = new ArrayList<>();
-        for (FurnitureSlot slot : slots.values()) {
+    public List<SlotDefinition> getSlotsForBlock(int layer, int row, int col) {
+        List<SlotDefinition> result = new ArrayList<>();
+        for (SlotDefinition slot : slots.values()) {
             if (slot.getLayer() == layer && slot.getRow() == row && slot.getCol() == col) {
                 result.add(slot);
             }

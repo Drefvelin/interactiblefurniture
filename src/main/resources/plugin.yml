@@ -5,3 +5,14 @@ version: 1.0
 author: Drefvelin
 
 depend: [TLibs, MythicMobs]
+
+commands:
+  if:
+    description: InteractibleFurniture admin commands
+    usage: /if reload
+    permission: interactiblefurniture.reload
+
+permissions:
+  interactiblefurniture.reload:
+    description: Reload furniture and sound configs
+    default: op

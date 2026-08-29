@@ -8,8 +8,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import javax.xml.crypto.Data;
-
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Chunk;
@@ -39,10 +37,12 @@ import net.tfminecraft.InteractibleFurniture;
 import net.tfminecraft.database.Database;
 import net.tfminecraft.events.FurnitureInteractEvent;
 import net.tfminecraft.furniture.Furniture;
-import net.tfminecraft.furniture.FurnitureSlot;
+import net.tfminecraft.furniture.PlacedSlot;
 import net.tfminecraft.furniture.FurnitureType;
+import net.tfminecraft.furniture.SlotDefinition;
 import net.tfminecraft.manager.handlers.FurniturePlacementHandler;
 import net.tfminecraft.manager.handlers.FurnitureBreakHandler;
+import net.tfminecraft.manager.handlers.FurnitureRestoreHandler;
 import net.tfminecraft.manager.handlers.InteractionHandler;
 import net.tfminecraft.manager.handlers.SlotInteractionHandler;
 import net.tfminecraft.utils.CoordinateUtils;
@@ -57,6 +57,7 @@ public class FurnitureManager implements Listener {
     private Database database;
     private final HashMap<Player, Long> cooldown = new HashMap<>();
     private final Map<UUID, Furniture> placed = new HashMap<>();
+    private final Set<Database.ChunkKey> dirtyChunks = new HashSet<>();
 
     public Database getDatabase() {
         return database;
@@ -80,9 +81,9 @@ public class FurnitureManager implements Listener {
         new BukkitRunnable() {
             @Override
             public void run() {
-                saveAllLoadedChunks();
+                saveDirtyChunks();
             }
-        }.runTaskTimerAsynchronously(InteractibleFurniture.getInstance(), 6000L, 6000L); // Every 5 minutes
+        }.runTaskTimer(InteractibleFurniture.getInstance(), 1200L, 1200L);
     }
 
     public void lightCycle() {
@@ -100,7 +101,7 @@ public class FurnitureManager implements Listener {
 
                     display.setBrightness(new ItemDisplay.Brightness(blockLight, skyLight));
 
-                    for (FurnitureSlot slot : f.getActiveSlots().values()) {
+                    for (PlacedSlot slot : f.getActiveSlots().values()) {
                         UUID displayId = slot.getDisplayStandId();
                         if (displayId == null) continue;
 
@@ -225,7 +226,7 @@ public class FurnitureManager implements Listener {
         FurnitureType type = f.getType();
         if (type == null) return false;
 
-        FurnitureSlot hitSlot = null;
+        SlotDefinition hitSlot = null;
         if (!type.getSlots().isEmpty() && clickPoint != null) {
             hitSlot = SlotInteractionHandler.findClosestSlotForHit(clickPoint, f, display);
         }
@@ -257,39 +258,21 @@ public class FurnitureManager implements Listener {
         Block broken = e.getBlock();
         Player p = e.getPlayer();
 
-        // Find all furniture that need to be removed (either directly or due to connected barriers)
         Set<UUID> toRemove = new HashSet<>();
         Set<Block> connectedBarriers = new HashSet<>();
 
-        // First pass - find directly affected furniture and collect their barrier locations
         for (Map.Entry<UUID, Furniture> en : placed.entrySet()) {
             Furniture f = en.getValue();
-            boolean affected = false;
+            boolean ownsBroken = f.isOriginBlock(broken) || f.getBarrierBlocks().contains(broken);
+            if (!ownsBroken) continue;
 
-            // Check barrier blocks first
-            for (Block b : f.getBarrierBlocks()) {
-                if (b.equals(broken)) {
-                    affected = true;
-                }
-                // Add all barrier locations to our set
-                connectedBarriers.add(b);
-            }
-
-            // Check origin block
-            if (!affected && f.isOriginBlock(broken)) {
-                affected = true;
-            }
-
-            if (affected) {
-                toRemove.add(en.getKey());
-            }
+            toRemove.add(en.getKey());
+            connectedBarriers.addAll(f.getBarrierBlocks());
         }
 
-        // Second pass - find furniture with barriers at the same locations
-        if (!connectedBarriers.isEmpty()) {
+        if (!toRemove.isEmpty()) {
             for (Map.Entry<UUID, Furniture> en : placed.entrySet()) {
-                if (toRemove.contains(en.getKey())) continue; // Skip already marked furniture
-
+                if (toRemove.contains(en.getKey())) continue;
                 Furniture f = en.getValue();
                 for (Block b : f.getBarrierBlocks()) {
                     if (connectedBarriers.contains(b)) {
@@ -298,13 +281,16 @@ public class FurnitureManager implements Listener {
                     }
                 }
             }
-        }
-
-        if (!toRemove.isEmpty()) {
             for (UUID id : toRemove) {
                 FurnitureBreakHandler.removeFurniture(id, placed, p, "attached-block-broken");
             }
             p.sendMessage(ChatColor.RED + "[Furniture] Removed " + toRemove.size() + " furniture(s) attached to the broken block.");
+            return;
+        }
+
+        if (broken.getType() == Material.BARRIER) {
+            e.setCancelled(true);
+            broken.setType(Material.AIR);
         }
     }
 
@@ -362,20 +348,18 @@ public class FurnitureManager implements Listener {
         Chunk chunk = event.getChunk();
         List<Furniture> loaded = database.loadChunk(chunk);
 
+        boolean changed = false;
         for (Furniture f : loaded) {
-            if (Bukkit.getEntity(f.getEntityId()) == null) {
-                Bukkit.getPlayerExact("drefvelin").sendMessage("no display found by uuid");
+            Furniture restored = FurnitureRestoreHandler.restore(f);
+            if (restored != null) {
+                placed.put(restored.getEntityId(), restored);
+            } else {
+                changed = true;
             }
-
-            placed.put(f.getEntityId(), f);
-
-            if (f.getType().hasInteraction()) {
-                Entity interaction = f.getInteractionEntityId() != null
-                        ? Bukkit.getEntity(f.getInteractionEntityId()) : null;
-                if (interaction == null || interaction.isDead()) {
-                    InteractionHandler.spawnInteraction(f);
-                }
-            }
+        }
+        FurnitureRestoreHandler.reconcileChunk(chunk, placed);
+        if (changed || dirtyChunks.contains(Database.ChunkKey.fromChunk(chunk))) {
+            persistChunk(chunk);
         }
 
         if (!loaded.isEmpty()) {
@@ -395,6 +379,7 @@ public class FurnitureManager implements Listener {
         // Collect furniture in this chunk
         Set<Furniture> inChunk = new HashSet<>();
         for (Furniture f : placed.values()) {
+            if (f.isCarried()) continue;
             if (f.getLoc().getChunk().equals(chunk)) {
                 inChunk.add(f);
             }
@@ -402,6 +387,7 @@ public class FurnitureManager implements Listener {
 
         if (!inChunk.isEmpty()) {
             database.saveChunk(chunk, inChunk);
+            dirtyChunks.remove(Database.ChunkKey.fromChunk(chunk));
 
             // Remove them from active memory (avoid holding unloaded chunk data)
             inChunk.forEach(f -> placed.remove(f.getEntityId()));
@@ -412,14 +398,37 @@ public class FurnitureManager implements Listener {
     }
 
     public Set<Furniture> getFurnitureInChunk(Chunk chunk) {
+        return getFurnitureInChunk(chunk, false);
+    }
+
+    public Set<Furniture> getFurnitureForSave(Chunk chunk) {
+        return getFurnitureInChunk(chunk, true);
+    }
+
+    private Set<Furniture> getFurnitureInChunk(Chunk chunk, boolean includeCarried) {
         Set<Furniture> set = new HashSet<>();
         for (Furniture f : placed.values()) {
-            if(f.isCarried()) continue;
+            if (!includeCarried && f.isCarried()) continue;
             if (f.getLoc().getChunk().equals(chunk)) {
                 set.add(f);
             }
         }
         return set;
+    }
+
+    public void markDirty(Furniture furniture) {
+        if (furniture == null || furniture.getLoc() == null || furniture.getLoc().getWorld() == null) return;
+        dirtyChunks.add(Database.ChunkKey.fromLocation(furniture.getLoc()));
+    }
+
+    public void persistFurniture(Furniture furniture) {
+        if (furniture == null || furniture.getLoc() == null || furniture.getLoc().getWorld() == null) return;
+        persistChunk(furniture.getLoc().getChunk());
+    }
+
+    public void persistChunk(Chunk chunk) {
+        database.saveChunk(chunk, getFurnitureForSave(chunk));
+        dirtyChunks.remove(Database.ChunkKey.fromChunk(chunk));
     }
 
     public void loadAlreadyLoadedChunks() {
@@ -429,14 +438,18 @@ public class FurnitureManager implements Listener {
             for (Chunk chunk : world.getLoadedChunks()) {
                 List<Furniture> furnitureList = database.loadChunk(chunk);
 
+                boolean changed = false;
                 for (Furniture f : furnitureList) {
-                    placed.put(f.getEntityId(), f);
-
-                    // Respawn ItemDisplay if needed (safety)
-                    if (Bukkit.getEntity(f.getEntityId()) == null) {
-                        // TODO: spawn logic (e.g. reload furniture visuals)
-                        // furnitureRespawnHandler.spawnFurniture(f);
+                    Furniture restored = FurnitureRestoreHandler.restore(f);
+                    if (restored != null) {
+                        placed.put(restored.getEntityId(), restored);
+                    } else {
+                        changed = true;
                     }
+                }
+                FurnitureRestoreHandler.reconcileChunk(chunk, placed);
+                if (changed || dirtyChunks.contains(Database.ChunkKey.fromChunk(chunk))) {
+                    persistChunk(chunk);
                 }
 
                 if (!furnitureList.isEmpty()) {
@@ -446,13 +459,51 @@ public class FurnitureManager implements Listener {
         }
 
         Bukkit.getLogger().info("[Furniture] Loaded " + totalLoaded + " furniture(s) from already-loaded chunks.");
+        Bukkit.getScheduler().runTaskLater(InteractibleFurniture.getInstance(), this::reconcileLoadedChunks, 2L);
+    }
+
+    public void reconcileLoadedChunks() {
+        int removed = 0;
+        for (World world : Bukkit.getWorlds()) {
+            for (Chunk chunk : world.getLoadedChunks()) {
+                int before = chunk.getEntities().length;
+                FurnitureRestoreHandler.reconcileChunk(chunk, placed);
+                removed += Math.max(0, before - chunk.getEntities().length);
+            }
+        }
+        if (removed > 0) {
+            Bukkit.getLogger().info("[Furniture] Removed " + removed + " orphan furniture entit(ies) after startup.");
+        }
+    }
+
+    public void saveDirtyChunks() {
+        if (dirtyChunks.isEmpty()) return;
+        int total = 0;
+        Set<Database.ChunkKey> snapshot = new HashSet<>(dirtyChunks);
+        for (Database.ChunkKey key : snapshot) {
+            World world = Bukkit.getWorld(key.world());
+            if (world == null) {
+                dirtyChunks.remove(key);
+                continue;
+            }
+            if (!world.isChunkLoaded(key.x(), key.z())) {
+                dirtyChunks.remove(key);
+                continue;
+            }
+            Chunk chunk = world.getChunkAt(key.x(), key.z());
+            Set<Furniture> list = getFurnitureForSave(chunk);
+            database.saveChunk(chunk, list);
+            dirtyChunks.remove(key);
+            total += list.size();
+        }
+        Bukkit.getLogger().info("[Furniture] Saved " + total + " dirty furniture record(s).");
     }
 
     public void saveAllLoadedChunks() {
         Map<Chunk, Set<Furniture>> chunkMap = new HashMap<>();
 
-        // Group all furniture by their chunk
         for (Furniture f : placed.values()) {
+            if (f.isCarried()) continue;
             Chunk c = f.getLoc().getChunk();
             chunkMap.computeIfAbsent(c, k -> new HashSet<>()).add(f);
         }
@@ -464,6 +515,7 @@ public class FurnitureManager implements Listener {
 
             if (!list.isEmpty()) {
                 database.saveChunk(chunk, list);
+                dirtyChunks.remove(Database.ChunkKey.fromChunk(chunk));
                 total += list.size();
             }
         }
@@ -472,9 +524,8 @@ public class FurnitureManager implements Listener {
     }
 
     public void deleteCarried() {
-        for(Furniture f : new ArrayList<>(placed.values())) {
-            if(f.isCarried()) f.remove(false);
-            placed.remove(f.getEntityId());
+        for (Furniture f : new ArrayList<>(placed.values())) {
+            if (f.isCarried()) f.remove(false);
         }
     }
 }

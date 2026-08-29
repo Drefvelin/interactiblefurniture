@@ -7,6 +7,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Transformation;
 import org.joml.Vector3f;
 
@@ -19,8 +20,8 @@ import net.tfminecraft.furniture.Furniture;
 import net.tfminecraft.furniture.FurnitureType;
 import net.tfminecraft.furniture.data.DisplayData;
 import net.tfminecraft.furniture.data.ModelData;
-import net.tfminecraft.manager.handlers.InteractionHandler;
 import net.tfminecraft.utils.Direction;
+import net.tfminecraft.utils.Keys;
 
 import java.util.*;
 
@@ -47,6 +48,7 @@ public class FurniturePlacementHandler {
             if(display == null) return true;
             Furniture furniture = new Furniture(type.getId(), display.getLocation(),
                     display.getUniqueId(), clicked.getLocation(), face);
+            furniture.setYaw(yaw);
             FurniturePlaceEvent event = new FurniturePlaceEvent(furniture, player);
             Bukkit.getPluginManager().callEvent(event);
             if(event.isCancelled()) {
@@ -58,8 +60,7 @@ public class FurniturePlacementHandler {
 
             placed.put(display.getUniqueId(), furniture);
             InteractionHandler.spawnInteraction(furniture);
-            Chunk chunk = furniture.getLoc().getChunk();
-            InteractibleFurniture.getInstance().getFurnitureManager().getDatabase().saveChunk(chunk, InteractibleFurniture.getInstance().getFurnitureManager().getFurnitureInChunk(chunk));
+            InteractibleFurniture.getInstance().getFurnitureManager().persistFurniture(furniture);
             player.swingMainHand();
             player.getInventory().getItemInMainHand().setAmount(
                     player.getInventory().getItemInMainHand().getAmount() - 1);
@@ -103,9 +104,9 @@ public class FurniturePlacementHandler {
 
         // apply
         carried.setFromDisplay(display, clicked, face);
+        carried.setYaw(yaw);
 
-        Chunk chunk = carried.getLoc().getChunk();
-        InteractibleFurniture.getInstance().getFurnitureManager().getDatabase().saveChunk(chunk, InteractibleFurniture.getInstance().getFurnitureManager().getFurnitureInChunk(chunk));
+        InteractibleFurniture.getInstance().getFurnitureManager().persistFurniture(carried);
 
         return true;
     }
@@ -252,7 +253,7 @@ public class FurniturePlacementHandler {
     }
 
     // ---- Barrier placement ----
-    private static void placeBarrierBlocks(List<boolean[][]> layers, Furniture furniture,
+    public static void placeBarrierBlocks(List<boolean[][]> layers, Furniture furniture,
                                            Block clicked, BlockFace face) {
         if (layers == null || layers.isEmpty()) return;
 
@@ -279,9 +280,13 @@ public class FurniturePlacementHandler {
     }
 
     // ---- Display entity ----
-    private static ItemDisplay spawnDisplayEntity(FurnitureType type, Location target, float yaw, BlockFace face) {
-        ModelData model = type.getData().getCurrentModelData();
-        Location spawnLoc = target.clone();
+    public static ItemDisplay spawnDisplayEntity(FurnitureType type, Location target, float yaw, BlockFace face) {
+        Location spawnLoc = applyFaceOffset(target.clone(), face);
+        if (InteractibleFurniture.getInstance().getFurnitureManager().getByLocation(spawnLoc) != null) return null;
+        return spawnDisplayAt(type, spawnLoc, yaw, face);
+    }
+
+    public static Location applyFaceOffset(Location spawnLoc, BlockFace face) {
         switch (face) {
             case UP:
                 spawnLoc.add(0, 0.5, 0);
@@ -304,46 +309,64 @@ public class FurniturePlacementHandler {
             default:
                 break;
         }
-        if(InteractibleFurniture.getInstance().getFurnitureManager().getByLocation(spawnLoc) != null) return null;
-        if(model.getDisplay().equals(Display.ITEM_DISPLAY)) {
-            return target.getWorld().spawn(spawnLoc, ItemDisplay.class, disp -> {
-                disp.setItemStack(TLibs.getItemAPI().getCreator().getItemFromPath(model.getModel()));
-                disp.setBillboard(org.bukkit.entity.Display.Billboard.FIXED);
-                org.joml.Quaternionf rotation = new org.joml.Quaternionf();
-                DisplayData data = type.getDisplayData();
-                // Start with yaw rotation (apply first to be base rotation)
-                rotation.rotateY((float) Math.toRadians(data.getyRot()+yaw));
-                if(data.getxRot() != 0) rotation.rotateX((float) Math.toRadians(data.getxRot()));
-                if(data.getzRot() != 0) rotation.rotateZ((float) Math.toRadians(data.getzRot()));
+        return spawnLoc;
+    }
 
-                // Then apply face-specific rotations
-                switch (face) {
-                    case UP:
-                        break;
-                    case DOWN:
-                        rotation.rotateX((float) Math.toRadians(-180));
-                        break;
-                    case NORTH, SOUTH, EAST, WEST:
-                        rotation.rotateX((float) Math.toRadians(-90));
-                        break;
-                    default:
-                        break;
-                }
+    public static void tagDisplay(ItemDisplay display, UUID furnitureId) {
+        display.getPersistentDataContainer().set(
+                Keys.furnitureDisplay(),
+                PersistentDataType.STRING,
+                furnitureId.toString());
+    }
 
-                disp.setTransformation(new Transformation(
-                        new Vector3f((float) data.getxPos(), (float) data.getyPos(), (float) data.getzPos()),
-                        rotation,
-                        new Vector3f((float) data.getxScale(), (float) data.getyScale(), (float) data.getzScale()),
-                        new org.joml.Quaternionf()
-                ));
-                disp.setBrightness(new org.bukkit.entity.Display.Brightness(spawnLoc.getBlock().getLightFromBlocks(), spawnLoc.getBlock().getLightFromSky()));
-                disp.setShadowRadius(0f);
-                disp.setShadowStrength(0f);
-                disp.setViewRange(50f);
-                disp.setPersistent(true);
-            });
-        } else {
-            return null; //TODO add meg display
+    public static ItemDisplay spawnDisplayAt(FurnitureType type, Location spawnLoc, float yaw, BlockFace face) {
+        return spawnDisplayAt(type, spawnLoc, yaw, face, type.getData().getCurrentModelData());
+    }
+
+    public static ItemDisplay spawnDisplayAt(Furniture furniture, Location spawnLoc, float yaw, BlockFace face) {
+        return spawnDisplayAt(furniture.getType(), spawnLoc, yaw, face, furniture.getCurrentModelData());
+    }
+
+    public static ItemDisplay spawnDisplayAt(FurnitureType type, Location spawnLoc, float yaw, BlockFace face,
+            ModelData model) {
+        if (type == null || model == null || !model.getDisplay().equals(Display.ITEM_DISPLAY)) {
+            return null;
         }
+        return spawnLoc.getWorld().spawn(spawnLoc, ItemDisplay.class, disp -> {
+            disp.setItemStack(TLibs.getItemAPI().getCreator().getItemFromPath(model.getModel()));
+            disp.setBillboard(org.bukkit.entity.Display.Billboard.FIXED);
+            org.joml.Quaternionf rotation = new org.joml.Quaternionf();
+            DisplayData data = type.getDisplayData();
+            rotation.rotateY((float) Math.toRadians(data.getyRot() + yaw));
+            if (data.getxRot() != 0) rotation.rotateX((float) Math.toRadians(data.getxRot()));
+            if (data.getzRot() != 0) rotation.rotateZ((float) Math.toRadians(data.getzRot()));
+
+            switch (face) {
+                case UP:
+                    break;
+                case DOWN:
+                    rotation.rotateX((float) Math.toRadians(-180));
+                    break;
+                case NORTH, SOUTH, EAST, WEST:
+                    rotation.rotateX((float) Math.toRadians(-90));
+                    break;
+                default:
+                    break;
+            }
+
+            disp.setTransformation(new Transformation(
+                    new Vector3f((float) data.getxPos(), (float) data.getyPos(), (float) data.getzPos()),
+                    rotation,
+                    new Vector3f((float) data.getxScale(), (float) data.getyScale(), (float) data.getzScale()),
+                    new org.joml.Quaternionf()
+            ));
+            disp.setBrightness(new org.bukkit.entity.Display.Brightness(
+                    spawnLoc.getBlock().getLightFromBlocks(), spawnLoc.getBlock().getLightFromSky()));
+            disp.setShadowRadius(0f);
+            disp.setShadowStrength(0f);
+            disp.setViewRange(50f);
+            disp.setPersistent(true);
+            tagDisplay(disp, disp.getUniqueId());
+        });
     }
 }

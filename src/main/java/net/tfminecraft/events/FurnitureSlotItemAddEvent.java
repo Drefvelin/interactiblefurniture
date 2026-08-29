@@ -7,29 +7,29 @@ import org.bukkit.event.player.PlayerEvent;
 import org.bukkit.inventory.ItemStack;
 
 import net.tfminecraft.furniture.Furniture;
-import net.tfminecraft.furniture.FurnitureSlot;
+import net.tfminecraft.furniture.SlotDefinition;
 import net.tfminecraft.furniture.data.DisplayData;
 
 public class FurnitureSlotItemAddEvent extends PlayerEvent implements Cancellable {
     private static final HandlerList handlers = new HandlerList();
     private final Furniture furniture;
-    private final FurnitureSlot slot;
+    private final SlotDefinition slot;
     private ItemStack item;
     private boolean cancelled;
     private DisplayData display;
 
-    public FurnitureSlotItemAddEvent(Player player, Furniture furniture, FurnitureSlot slot, ItemStack item) {
+    public FurnitureSlotItemAddEvent(Player player, Furniture furniture, SlotDefinition slot, ItemStack item) {
         super(player);
         this.furniture = furniture;
         this.slot = slot;
         this.item = item;
     }
-    
+
     public Furniture getFurniture() {
         return furniture;
     }
 
-    public FurnitureSlot getSlot() {
+    public SlotDefinition getSlot() {
         return slot;
     }
 

@@ -4,16 +4,16 @@ import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
-import net.tfminecraft.furniture.FurnitureSlot;
+import net.tfminecraft.furniture.SlotDefinition;
 
 public class DebugUtils {
-    public static void sendSlotDebug(Player player, FurnitureSlot slot, Vector slotPoint, double dist) {
+    public static void sendSlotDebug(Player player, SlotDefinition slot, Vector slotPoint, double dist) {
         player.sendMessage(ChatColor.GRAY + "[DEBUG] Slot " + slot.getId() +
             " at " + String.format("%.2f %.2f %.2f", 
                 slotPoint.getX(), slotPoint.getY(), slotPoint.getZ()));
     }
 
-    public static void sendNewClosestDebug(Player player, FurnitureSlot slot, double dist) {
+    public static void sendNewClosestDebug(Player player, SlotDefinition slot, double dist) {
         player.sendMessage(ChatColor.YELLOW + "[DEBUG] New closest: " + slot.getId() +
             " (dist=" + String.format("%.2f", dist) + ")");
     }

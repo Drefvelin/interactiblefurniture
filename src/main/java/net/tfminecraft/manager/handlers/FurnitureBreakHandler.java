@@ -3,6 +3,7 @@ package net.tfminecraft.manager.handlers;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemDisplay;
@@ -14,8 +15,8 @@ import net.tfminecraft.InteractibleFurniture;
 import net.tfminecraft.enums.SoundEffect;
 import net.tfminecraft.events.FurnitureBreakEvent;
 import net.tfminecraft.furniture.Furniture;
-import net.tfminecraft.furniture.FurnitureSlot;
 import net.tfminecraft.furniture.FurnitureType;
+import net.tfminecraft.furniture.PlacedSlot;
 import net.tfminecraft.manager.handlers.InteractionHandler;
 
 import java.util.HashSet;
@@ -38,9 +39,10 @@ public class FurnitureBreakHandler {
         if(event.isCancelled()) return;
         Furniture furniture = placed.remove(furnitureId);
         if (furniture == null) return;
+        clearUnsharedBarriers(furniture, placed);
         Chunk chunk = furniture.getLoc().getChunk();
-        InteractibleFurniture.getInstance().getFurnitureManager().getDatabase().saveChunk(chunk, InteractibleFurniture.getInstance().getFurnitureManager().getFurnitureInChunk(chunk));
-        if(furniture.getType().hasSoundEffect(SoundEffect.BREAK)) {
+        InteractibleFurniture.getInstance().getFurnitureManager().persistChunk(chunk);
+        if(furniture.getType() != null && furniture.getType().hasSoundEffect(SoundEffect.BREAK)) {
             String sound = furniture.getType().getSoundEffectPath(SoundEffect.BREAK);
             furniture.getLoc().getWorld().playSound(furniture.getLoc(), sound, 1.0f, 1.0f);
         }
@@ -51,6 +53,23 @@ public class FurnitureBreakHandler {
 
         // Remove the furniture entity
         removeEntity(furnitureId);
+    }
+
+    private static void clearUnsharedBarriers(Furniture furniture, Map<UUID, Furniture> placed) {
+        for (Block block : new java.util.ArrayList<>(furniture.getBarrierBlocks())) {
+            if (block.getType() != Material.BARRIER) continue;
+            boolean shared = false;
+            for (Furniture other : placed.values()) {
+                if (other.getBarrierBlocks().contains(block)) {
+                    shared = true;
+                    break;
+                }
+            }
+            if (!shared) {
+                block.setType(Material.AIR);
+            }
+        }
+        furniture.clearBarrierBlocks();
     }
 
     public static Set<UUID> findConnectedFurniture(Block startBlock, Map<UUID, Furniture> placed) {
@@ -103,7 +122,7 @@ public class FurnitureBreakHandler {
         Location dropLoc = furniture.getLoc();
         if (dropLoc.getWorld() == null) return;
 
-        for (FurnitureSlot slot : new java.util.ArrayList<>(furniture.getActiveSlots().values())) {
+        for (PlacedSlot slot : new java.util.ArrayList<>(furniture.getActiveSlots().values())) {
             if (dropslots) {
                 ItemStack item = slot.getCurrentItem();
                 if (item != null) {

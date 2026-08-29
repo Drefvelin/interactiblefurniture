@@ -16,7 +16,7 @@ import net.tfminecraft.utils.Keys;
 public class InteractionHandler {
 
     public static void spawnInteraction(Furniture furniture) {
-        if (!furniture.getType().hasInteraction()) return;
+        if (furniture.getType() == null || !furniture.getType().hasInteraction()) return;
         if (furniture.getInteractionEntityId() != null) {
             Entity existing = Bukkit.getEntity(furniture.getInteractionEntityId());
             if (existing != null && !existing.isDead()) return;
@@ -49,7 +49,7 @@ public class InteractionHandler {
     }
 
     public static void updateInteractionPosition(Furniture furniture) {
-        if (!furniture.getType().hasInteraction()) return;
+        if (furniture.getType() == null || !furniture.getType().hasInteraction()) return;
         UUID id = furniture.getInteractionEntityId();
         if (id == null) {
             spawnInteraction(furniture);

@@ -1,13 +1,9 @@
 package net.tfminecraft.furniture;
 
-import java.util.HashSet;
-import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -33,16 +29,16 @@ import net.tfminecraft.manager.handlers.InteractionHandler;
  */
 public class Furniture {
     private final String id;
-    private final FurnitureType type;
     private Location loc;
-    private final UUID entityId;
+    private UUID entityId;
+    private float yaw;
+    private boolean persistedCarried;
     private java.util.List<Block> barrierBlocks = new java.util.ArrayList<>();
-    // the original block the furniture was attached to (the block the player clicked when placing)
-    // used for accurate hit detection and persistence
     private Location originBlockLocation;
     private org.bukkit.block.BlockFace originBlockFace;
-    // Map of slotId -> placed item for this furniture instance
-    private final java.util.Map<String, FurnitureSlot> activeSlots = new java.util.HashMap<>();
+    private final java.util.Map<String, PlacedSlot> activeSlots = new java.util.HashMap<>();
+    private java.util.Map<String, Object> variables = new java.util.HashMap<>();
+    private net.tfminecraft.furniture.data.ModelData modelOverride;
 
     private Player holder;
     private boolean firstCarryTick = true;
@@ -56,7 +52,6 @@ public class Furniture {
 
     public Furniture(String id, Location loc, UUID entityId, Location originBlockLocation, org.bukkit.block.BlockFace originBlockFace) {
         this.id = id;
-        this.type = new FurnitureType(this, FurnitureLoader.getByString(id));
         this.loc = loc;
         this.entityId = entityId;
         this.originBlockLocation = originBlockLocation;
@@ -68,7 +63,7 @@ public class Furniture {
     }
 
     public FurnitureType getType() {
-        return type;
+        return FurnitureLoader.getByString(id);
     }
 
     public Location getLoc() {
@@ -77,6 +72,26 @@ public class Furniture {
 
     public UUID getEntityId() {
         return entityId;
+    }
+
+    public void setEntityId(UUID entityId) {
+        this.entityId = entityId;
+    }
+
+    public float getYaw() {
+        return yaw;
+    }
+
+    public void setYaw(float yaw) {
+        this.yaw = yaw;
+    }
+
+    public boolean isPersistedCarried() {
+        return persistedCarried;
+    }
+
+    public void setPersistedCarried(boolean persistedCarried) {
+        this.persistedCarried = persistedCarried;
     }
 
     public UUID getInteractionEntityId() {
@@ -142,12 +157,12 @@ public class Furniture {
         originBlockLocation = null;
         removeInteractionEntity();
         holder = p;
+        persistedCarried = true;
 
         firstCarryTick = true;
         baseResetLoc = p.getLocation().clone();
         InteractibleFurniture.getInstance().getFurnitureManager().pulse(p);
-        Chunk chunk = getLoc().getChunk();
-        InteractibleFurniture.getInstance().getFurnitureManager().getDatabase().saveChunk(chunk, InteractibleFurniture.getInstance().getFurnitureManager().getFurnitureInChunk(chunk));
+        InteractibleFurniture.getInstance().getFurnitureManager().persistFurniture(this);
     }
 
     public void setFromDisplay(ItemDisplay newDisplay, Block block, BlockFace face) {
@@ -160,15 +175,18 @@ public class Furniture {
 
         // Stop carrying
         this.holder = null;
+        this.persistedCarried = false;
 
         ItemDisplay display = (ItemDisplay) Bukkit.getEntity(entityId);
         display.setTransformation(newDisplay.getTransformation());
         display.teleport(newDisplay.getLocation());
 
         // Reset slot origins (necessary so slots follow correctly after placement)
-        for (FurnitureSlot slot : activeSlots.values()) {
-            Location newLoc = slot.computeDisplayLocation(loc, display, null);
-            Transformation t = slot.buildFinalTransformation(display, null);
+        for (PlacedSlot slot : activeSlots.values()) {
+            SlotDefinition def = slot.getDefinition();
+            if (def == null) continue;
+            Location newLoc = def.computeDisplayLocation(loc, display, null);
+            Transformation t = def.buildFinalTransformation(display, null);
             ItemDisplay slotDisplay = (ItemDisplay) Bukkit.getEntity(slot.getDisplayStandId());
             if(slotDisplay == null) continue;
             slotDisplay.teleport(newLoc);
@@ -251,7 +269,7 @@ public class Furniture {
             base.setInterpolationDelay(0);
             base.setTransformation(t);
 
-            for (FurnitureSlot slot : activeSlots.values()) {
+            for (PlacedSlot slot : activeSlots.values()) {
                 slot.followParentTransform(base);
             }
             updateInteractionPosition();
@@ -278,19 +296,6 @@ public class Furniture {
         return (w > 0.01f || x > 0.01f || y > 0.01f || z > 0.01f);
     }
 
-    public void removeBarriers() {
-        Map<UUID, Furniture> placed = InteractibleFurniture.getInstance().getFurnitureManager().getPlacedFurniture();
-        Set<UUID> connected = new HashSet<>();
-        connected.add(entityId);
-        Set<Block> checkedBarriers = new HashSet<>();
-        for(Block b : barrierBlocks) {
-            FurnitureBreakHandler.findConnectedRecursive(b, placed, connected, checkedBarriers);
-        }
-        for(UUID id : connected) {
-            FurnitureBreakHandler.removeFurniture(id, placed, null, null);
-        }
-    }
-
     /**
      * Checks whether the given block and face match the stored origin exactly.
      * If the stored face is null, only the block is matched.
@@ -305,21 +310,26 @@ public class Furniture {
     /**
      * Get all active slots (slots that have items placed in them)
      */
-    public java.util.Map<String, FurnitureSlot> getActiveSlots() {
+    public java.util.Map<String, PlacedSlot> getActiveSlots() {
         return activeSlots;
     }
 
-    /**
-     * Get a specific active slot by ID
-     */
-    public Optional<FurnitureSlot> getActiveSlot(String slotId) {
+    public Optional<PlacedSlot> getActiveSlot(String slotId) {
         return Optional.ofNullable(activeSlots.get(slotId));
     }
 
-    /**
-     * Add an active slot (when an item is placed)
-     */
-    public void addActiveSlot(FurnitureSlot slot) {
+    public PlacedSlot getOrCreatePlacedSlot(String slotId) {
+        PlacedSlot existing = activeSlots.get(slotId);
+        if (existing != null) {
+            return existing;
+        }
+        PlacedSlot created = new PlacedSlot(this, slotId);
+        activeSlots.put(slotId, created);
+        return created;
+    }
+
+    public void addActiveSlot(PlacedSlot slot) {
+        slot.setFurniture(this);
         activeSlots.put(slot.getId(), slot);
     }
 
@@ -327,24 +337,46 @@ public class Furniture {
         return activeSlots.containsKey(s);
     }
 
-    /**
-     * Remove an active slot (when an item is taken)
-     */
     public void removeActiveSlot(String slotId) {
-        FurnitureSlot slot = activeSlots.remove(slotId);
-        if (slot != null) {
+        removeActiveSlot(slotId, true);
+    }
+
+    public void removeActiveSlot(String slotId, boolean removeDisplay) {
+        PlacedSlot slot = activeSlots.remove(slotId);
+        if (slot != null && removeDisplay) {
             slot.removeDisplayStand(loc.getWorld());
         }
     }
 
-    /**
-     * Clear all active slots (removing display stands)
-     */
     public void clearActiveSlots() {
-        for (FurnitureSlot slot : activeSlots.values()) {
+        for (PlacedSlot slot : activeSlots.values()) {
             slot.removeDisplayStand(loc.getWorld());
         }
         activeSlots.clear();
+    }
+
+    public java.util.Map<String, Object> getVariables() {
+        return variables;
+    }
+
+    public void setVariables(java.util.Map<String, Object> variables) {
+        this.variables = variables != null ? variables : new java.util.HashMap<>();
+    }
+
+    public net.tfminecraft.furniture.data.ModelData getModelOverride() {
+        return modelOverride;
+    }
+
+    public void setModelOverride(net.tfminecraft.furniture.data.ModelData modelOverride) {
+        this.modelOverride = modelOverride;
+    }
+
+    public net.tfminecraft.furniture.data.ModelData getCurrentModelData() {
+        if (modelOverride != null) {
+            return modelOverride;
+        }
+        FurnitureType type = getType();
+        return type != null ? type.getData().getModelData() : null;
     }
 
     public void remove(boolean dropslots) {
