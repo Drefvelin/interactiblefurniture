@@ -228,12 +228,19 @@ public class SlotInteractionHandler {
         boolean[] removed = {false};
         furniture.getActiveSlot(slot.getId()).ifPresent(activeSlot -> {
             ItemStack item = activeSlot.getCurrentItem();
-            if (item != null) {
-                furniture.removeActiveSlot(slot.getId());
-                InteractibleFurniture.getInstance().getFurnitureManager().persistFurniture(furniture);
-                clicked.getWorld().dropItemNaturally(clicked.getLocation(), item);
-                removed[0] = true;
+            if (item == null) {
+                return;
             }
+            FurnitureSlotItemTakeEvent event = new FurnitureSlotItemTakeEvent(
+                    player, furniture, slot, item.clone());
+            Bukkit.getPluginManager().callEvent(event);
+            if (event.isCancelled()) {
+                return;
+            }
+            furniture.removeActiveSlot(slot.getId());
+            InteractibleFurniture.getInstance().getFurnitureManager().persistFurniture(furniture);
+            clicked.getWorld().dropItemNaturally(clicked.getLocation(), event.getItem());
+            removed[0] = true;
         });
         return removed[0];
     }

@@ -257,7 +257,6 @@ public class Furniture {
         if (baseResetLoc != null && baseResetLoc.getWorld().equals(holderLoc.getWorld())) {
             // If furniture entity has drifted too far from holder
             if (base.getLocation().distanceSquared(holderLoc) > (64 * 64)) {
-                holder.sendMessage("§cReadched maximum carry range");
                 remove(true);
                 return;
             }

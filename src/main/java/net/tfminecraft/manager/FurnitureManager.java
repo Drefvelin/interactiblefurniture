@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -61,6 +61,13 @@ public class FurnitureManager implements Listener {
 
     public Database getDatabase() {
         return database;
+    }
+
+    public void visitSavedFurniture(Consumer<Furniture> visitor) {
+        if (database == null) {
+            return;
+        }
+        database.visitSavedFurniture(visitor);
     }
 
     public Furniture getByCarrier(Player p) {
@@ -281,10 +288,15 @@ public class FurnitureManager implements Listener {
                     }
                 }
             }
+            boolean blocked = false;
             for (UUID id : toRemove) {
-                FurnitureBreakHandler.removeFurniture(id, placed, p, "attached-block-broken");
+                if (!FurnitureBreakHandler.removeFurniture(id, placed, p, "attached-block-broken")) {
+                    blocked = true;
+                }
             }
-            p.sendMessage(ChatColor.RED + "[Furniture] Removed " + toRemove.size() + " furniture(s) attached to the broken block.");
+            if (blocked) {
+                e.setCancelled(true);
+            }
             return;
         }
 

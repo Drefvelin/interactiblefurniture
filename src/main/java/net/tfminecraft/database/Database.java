@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
+import java.util.function.Consumer;
 
 /**
  * Handles saving and loading furniture data to disk.
@@ -118,6 +119,37 @@ public class Database {
             return loaded;
         }
         return List.of();
+    }
+
+    public void visitSavedFurniture(Consumer<Furniture> visitor) {
+        if (visitor == null || chunkDataFolder == null || !chunkDataFolder.isDirectory()) {
+            return;
+        }
+        File[] worlds = chunkDataFolder.listFiles(File::isDirectory);
+        if (worlds == null) {
+            return;
+        }
+        for (File worldDir : worlds) {
+            File[] files = worldDir.listFiles((dir, name) -> name.endsWith(".json"));
+            if (files == null) {
+                continue;
+            }
+            for (File file : files) {
+                if (file.getName().endsWith(".json.bak") || file.getName().endsWith(".json.tmp")) {
+                    continue;
+                }
+                List<Furniture> loaded = tryReadChunkFile(file);
+                if (loaded == null) {
+                    continue;
+                }
+                for (Furniture furniture : loaded) {
+                    if (furniture == null || furniture.isCarried() || furniture.isPersistedCarried()) {
+                        continue;
+                    }
+                    visitor.accept(furniture);
+                }
+            }
+        }
     }
 
     private List<Furniture> tryReadChunkFile(File file) {

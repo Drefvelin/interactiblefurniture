@@ -26,19 +26,19 @@ import java.util.UUID;
 
 public class FurnitureBreakHandler {
     
-    public static void removeFurniture(UUID furnitureId, Map<UUID, Furniture> placed, 
+    public static boolean removeFurniture(UUID furnitureId, Map<UUID, Furniture> placed, 
             Player breaker, String reason) {
-        removeFurniture(furnitureId, placed, breaker, reason, true);
+        return removeFurniture(furnitureId, placed, breaker, reason, true);
     }
 
-    public static void removeFurniture(UUID furnitureId, Map<UUID, Furniture> placed, 
+    public static boolean removeFurniture(UUID furnitureId, Map<UUID, Furniture> placed, 
             Player breaker, String reason, boolean dropslots) {
-        if(!placed.containsKey(furnitureId)) return;
+        if(!placed.containsKey(furnitureId)) return false;
         FurnitureBreakEvent event = new FurnitureBreakEvent(placed.get(furnitureId), breaker);
         Bukkit.getPluginManager().callEvent(event);
-        if(event.isCancelled()) return;
+        if(event.isCancelled()) return false;
         Furniture furniture = placed.remove(furnitureId);
-        if (furniture == null) return;
+        if (furniture == null) return false;
         clearUnsharedBarriers(furniture, placed);
         Chunk chunk = furniture.getLoc().getChunk();
         InteractibleFurniture.getInstance().getFurnitureManager().persistChunk(chunk);
@@ -53,6 +53,7 @@ public class FurnitureBreakHandler {
 
         // Remove the furniture entity
         removeEntity(furnitureId);
+        return true;
     }
 
     private static void clearUnsharedBarriers(Furniture furniture, Map<UUID, Furniture> placed) {
