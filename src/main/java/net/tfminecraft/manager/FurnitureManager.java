@@ -355,6 +355,14 @@ public class FurnitureManager implements Listener {
 		return placed;
 	}
 
+    /** Remove without dropping the furniture item (plugin cleanup). */
+    public boolean removePlugin(Furniture furniture) {
+        if (furniture == null) {
+            return false;
+        }
+        return FurnitureBreakHandler.removeFurniture(furniture.getEntityId(), placed, null, "plugin");
+    }
+
     @EventHandler
     public void onChunkLoad(ChunkLoadEvent event) {
         Chunk chunk = event.getChunk();

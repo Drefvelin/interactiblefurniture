@@ -110,10 +110,10 @@ public class FurnitureBreakHandler {
 
         ItemStack furnitureItem = TLibs.getItemAPI().getCreator().getItemFromPath(type.getItemPath());
         if (furnitureItem == null) return;
-        if(reason == null || !reason.equals("picked-up")) {
+        if(reason == null || (!reason.equals("picked-up") && !reason.equals("plugin"))) {
             Location dropLoc = furniture.getLoc();
             furniture.getLoc().getWorld().dropItemNaturally(dropLoc, furnitureItem);
-        } else if(p != null) {
+        } else if(p != null && reason.equals("picked-up")) {
             p.swingMainHand();
             p.getInventory().setItemInMainHand(furnitureItem);
         }
