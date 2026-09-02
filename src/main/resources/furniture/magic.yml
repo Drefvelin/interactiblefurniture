@@ -57,3 +57,29 @@ pedestal:
             x: 0.8
             y: 0.8
             z: 0.8
+
+artifact_display:
+  item: "ia.tfmc:artifact_display"
+  model:
+    display: item_display
+    model: ia.tfmc:artifact_display
+  placement_options:
+    floor: true
+  rotate: true
+  pickup: true
+  solid: true
+  sound:
+    place: block.ancient_debris.place
+    break: block.ancient_debris.break
+  slots:
+    templates:
+      display_slot:
+        whitelist:
+          - "*"
+    center:
+      display:
+        template: display_slot
+        offset:
+          x: 0
+          y: 0
+          z: 0

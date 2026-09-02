@@ -57,6 +57,7 @@ public final class SlotDefinition {
     public boolean isInteractible() { return interactible; }
 
     public boolean isItemAllowed(String itemPath) {
+        if (acceptsAny()) return itemPath != null && !itemPath.isEmpty();
         return whitelist.contains(itemPath);
     }
 
@@ -69,10 +70,18 @@ public final class SlotDefinition {
     public boolean isItemAllowed(ItemStack item) {
         if (!interactible) return false;
         if (item == null || item.getType().isAir()) return false;
+        if (acceptsAny()) return true;
         for (String s : whitelist) {
             if (TLibs.getItemAPI().getChecker().checkItemWithPath(item, s)) {
                 return true;
             }
+        }
+        return false;
+    }
+
+    private boolean acceptsAny() {
+        for (String s : whitelist) {
+            if (s != null && s.trim().equals("*")) return true;
         }
         return false;
     }
