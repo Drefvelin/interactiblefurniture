@@ -18,6 +18,7 @@ import org.joml.Vector3f;
 import net.tfminecraft.InteractibleFurniture;
 import net.tfminecraft.loaders.FurnitureLoader;
 import net.tfminecraft.manager.handlers.FurnitureBreakHandler;
+import net.tfminecraft.manager.handlers.FurnitureNestedDisplay;
 import net.tfminecraft.manager.handlers.InteractionHandler;
 
 /**
@@ -37,8 +38,12 @@ public class Furniture {
     private Location originBlockLocation;
     private org.bukkit.block.BlockFace originBlockFace;
     private final java.util.Map<String, PlacedSlot> activeSlots = new java.util.HashMap<>();
+    private final java.util.Map<String, PlacedFurnitureSlot> activeFurnitureSlots = new java.util.HashMap<>();
     private java.util.Map<String, Object> variables = new java.util.HashMap<>();
     private net.tfminecraft.furniture.data.ModelData modelOverride;
+
+    private UUID parentEntityId;
+    private String parentSlotId;
 
     private Player holder;
     private boolean firstCarryTick = true;
@@ -76,6 +81,76 @@ public class Furniture {
 
     public void setEntityId(UUID entityId) {
         this.entityId = entityId;
+    }
+
+    public void setLoc(Location loc) {
+        this.loc = loc != null ? loc.clone() : null;
+    }
+
+    public void setOriginBlock(Location originBlockLocation, org.bukkit.block.BlockFace originBlockFace) {
+        this.originBlockLocation = originBlockLocation != null ? originBlockLocation.clone() : null;
+        this.originBlockFace = originBlockFace;
+    }
+
+    public void clearOriginBlock() {
+        this.originBlockLocation = null;
+        this.originBlockFace = null;
+    }
+
+    public boolean isAttached() {
+        return parentEntityId != null;
+    }
+
+    public UUID getParentEntityId() {
+        return parentEntityId;
+    }
+
+    public String getParentSlotId() {
+        return parentSlotId;
+    }
+
+    public void setAttachment(UUID parentId, String slotId) {
+        this.parentEntityId = parentId;
+        this.parentSlotId = slotId;
+    }
+
+    public void clearAttachment() {
+        this.parentEntityId = null;
+        this.parentSlotId = null;
+    }
+
+    public java.util.Map<String, PlacedFurnitureSlot> getActiveFurnitureSlots() {
+        return activeFurnitureSlots;
+    }
+
+    public boolean hasActiveFurnitureSlot(String slotId) {
+        return activeFurnitureSlots.containsKey(slotId);
+    }
+
+    public Optional<PlacedFurnitureSlot> getActiveFurnitureSlot(String slotId) {
+        return Optional.ofNullable(activeFurnitureSlots.get(slotId));
+    }
+
+    public PlacedFurnitureSlot getOrCreatePlacedFurnitureSlot(String slotId) {
+        PlacedFurnitureSlot existing = activeFurnitureSlots.get(slotId);
+        if (existing != null) {
+            return existing;
+        }
+        PlacedFurnitureSlot created = new PlacedFurnitureSlot(this, slotId);
+        activeFurnitureSlots.put(slotId, created);
+        return created;
+    }
+
+    public void removeActiveFurnitureSlot(String slotId) {
+        activeFurnitureSlots.remove(slotId);
+    }
+
+    public void clearActiveFurnitureSlots() {
+        activeFurnitureSlots.clear();
+    }
+
+    public boolean hasNestedFurniture() {
+        return !activeFurnitureSlots.isEmpty();
     }
 
     public float getYaw() {
@@ -152,6 +227,8 @@ public class Furniture {
 
     public void carry(Player p) {
         if (!barrierBlocks.isEmpty()) return;
+        if (isAttached()) return;
+        if (hasNestedFurniture()) return;
 
         originBlockFace = null;
         originBlockLocation = null;
@@ -163,6 +240,17 @@ public class Furniture {
         baseResetLoc = p.getLocation().clone();
         InteractibleFurniture.getInstance().getFurnitureManager().pulse(p);
         InteractibleFurniture.getInstance().getFurnitureManager().persistFurniture(this);
+    }
+
+    public void stopCarrying() {
+        if (!isCarried()) {
+            return;
+        }
+        holder = null;
+        persistedCarried = false;
+        firstCarryTick = true;
+        lastLoc = null;
+        baseResetLoc = null;
     }
 
     public void setFromDisplay(ItemDisplay newDisplay, Block block, BlockFace face) {
@@ -192,6 +280,7 @@ public class Furniture {
             slotDisplay.teleport(newLoc);
             slotDisplay.setTransformation(t);
         }
+        FurnitureNestedDisplay.onParentTransformChanged(this);
         newDisplay.remove();
         spawnInteractionEntity();
     }
@@ -271,6 +360,7 @@ public class Furniture {
             for (PlacedSlot slot : activeSlots.values()) {
                 slot.followParentTransform(base);
             }
+            FurnitureNestedDisplay.onParentTransformChanged(this);
             updateInteractionPosition();
         }
     }

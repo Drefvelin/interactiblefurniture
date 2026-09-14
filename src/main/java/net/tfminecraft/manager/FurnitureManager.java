@@ -31,11 +31,13 @@ import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 
 import net.tfminecraft.InteractibleFurniture;
 import net.tfminecraft.database.Database;
 import net.tfminecraft.events.FurnitureInteractEvent;
+import net.tfminecraft.events.FurniturePunchEvent;
 import net.tfminecraft.furniture.Furniture;
 import net.tfminecraft.furniture.PlacedSlot;
 import net.tfminecraft.furniture.FurnitureType;
@@ -175,8 +177,16 @@ public class FurnitureManager implements Listener {
         }
 
         if (carried != null) {
-            // Player right-clicked while carrying → attempt placement
-            boolean placedCarried = FurniturePlacementHandler.placeCarriedFurniture(p, clicked, e.getBlockFace(), carried, placed);
+            BlockFace face = e.getBlockFace();
+            for (Furniture f : placed.values()) {
+                if (!isValidInteraction(f, clicked, face)) continue;
+                Vector clickPoint = CoordinateUtils.calculateClickPoint(p, clicked, face);
+                if (SlotInteractionHandler.tryAttachCarried(p, f, carried, clickPoint)) {
+                    e.setCancelled(true);
+                    return;
+                }
+            }
+            boolean placedCarried = FurniturePlacementHandler.placeCarriedFurniture(p, clicked, face, carried, placed);
             if (placedCarried) {
                 e.setCancelled(true);
                 return;
@@ -211,7 +221,7 @@ public class FurnitureManager implements Listener {
         if (!(e.getRightClicked() instanceof Interaction interaction)) return;
 
         Furniture f = InteractionHandler.resolveFurniture(interaction, placed);
-        if (f == null || f.isCarried()) return;
+        if (f == null) return;
 
         Player p = e.getPlayer();
         if (cooldown.containsKey(p)) {
@@ -221,6 +231,23 @@ public class FurnitureManager implements Listener {
         cooldown.put(p, System.currentTimeMillis() + 200);
 
         Vector clickPoint = interaction.getLocation().toVector().add(e.getClickedPosition());
+
+        Furniture carried = null;
+        for (Furniture candidate : placed.values()) {
+            if (candidate.isCarried() && candidate.getHolder().equals(p)) {
+                carried = candidate;
+                break;
+            }
+        }
+        if (carried != null && !f.isCarried()) {
+            if (SlotInteractionHandler.tryAttachCarried(p, f, carried, clickPoint)) {
+                e.setCancelled(true);
+                return;
+            }
+        }
+
+        if (f.isCarried()) return;
+
         if (processFurnitureInteraction(p, f, clickPoint, BlockFace.UP, null)) {
             e.setCancelled(true);
         }
@@ -234,22 +261,46 @@ public class FurnitureManager implements Listener {
         if (type == null) return false;
 
         SlotDefinition hitSlot = null;
+        Furniture interactFurniture = f;
         if (!type.getSlots().isEmpty() && clickPoint != null) {
-            hitSlot = SlotInteractionHandler.findClosestSlotForHit(clickPoint, f, display);
+            SlotInteractionHandler.SlotHitTarget target =
+                    SlotInteractionHandler.findBestSlotHit(clickPoint, f, display, p.getInventory().getItemInMainHand());
+            if (target != null) {
+                interactFurniture = target.furniture();
+                hitSlot = target.slot();
+            }
         }
 
-        FurnitureInteractEvent event = new FurnitureInteractEvent(p, f, hitSlot, clickPoint);
+        FurnitureInteractEvent event = new FurnitureInteractEvent(p, interactFurniture, hitSlot, clickPoint);
         Bukkit.getPluginManager().callEvent(event);
         if (event.isCancelled()) return true;
 
-        if (type.canPickup() && p.getInventory().getItemInMainHand().getType().equals(Material.AIR)
-                && f.getActiveSlots().isEmpty()) {
+        boolean alreadyCarrying = getByCarrier(p) != null;
+
+        if (p.getInventory().getItemInMainHand().getType().equals(Material.AIR)
+                && p.isSneaking()
+                && type.canCarry()
+                && !f.isCarried()
+                && !alreadyCarrying) {
+            f.carry(p);
+            return true;
+        }
+
+        if (!p.isSneaking()
+                && type.canPickup()
+                && p.getInventory().getItemInMainHand().getType().equals(Material.AIR)
+                && f.getActiveSlots().isEmpty()
+                && f.getActiveFurnitureSlots().isEmpty()
+                && !alreadyCarrying) {
             FurnitureBreakHandler.removeFurniture(f.getEntityId(), placed, p, "picked-up");
             return true;
         }
 
         if (hitSlot != null && hitSlot.isInteractible()) {
-            if (SlotInteractionHandler.handleSlotInteraction(p, f, display, hitSlot, Action.RIGHT_CLICK_BLOCK)) {
+            Entity interactEntity = Bukkit.getEntity(interactFurniture.getEntityId());
+            if (interactEntity instanceof ItemDisplay interactDisplay
+                    && SlotInteractionHandler.handleSlotInteraction(
+                            p, interactFurniture, interactDisplay, hitSlot, Action.RIGHT_CLICK_BLOCK)) {
                 return true;
             }
         } else if (hitSlot == null && clicked != null && !type.getSlots().isEmpty()) {
@@ -308,47 +359,143 @@ public class FurnitureManager implements Listener {
 
     @EventHandler
     public void onPlayerLeftClick(PlayerInteractEvent e) {
-        if (e.getAction() != Action.LEFT_CLICK_BLOCK) return;
-        Block clicked = e.getClickedBlock();
-        if (clicked == null) return;
+        if (e.getAction() != Action.LEFT_CLICK_BLOCK && e.getAction() != Action.LEFT_CLICK_AIR) {
+            return;
+        }
         Player p = e.getPlayer();
 
-        for (Map.Entry<UUID, Furniture> en : placed.entrySet()) {
-            Furniture f = en.getValue();
-            
-            // Check for barrier block hits
-            for (Block b : f.getBarrierBlocks()) {
-                if (b.equals(clicked)) {
-                    FurnitureBreakHandler.removeFurniture(en.getKey(), placed, p, "barrier-punched");
-                    e.setCancelled(true);
-                    return;
+        if (e.getAction() == Action.LEFT_CLICK_BLOCK) {
+            Block clicked = e.getClickedBlock();
+            if (clicked != null) {
+                for (Map.Entry<UUID, Furniture> en : placed.entrySet()) {
+                    Furniture f = en.getValue();
+
+                    for (Block b : f.getBarrierBlocks()) {
+                        if (b.equals(clicked)) {
+                            punchThenBreak(f, p, "barrier-punched");
+                            e.setCancelled(true);
+                            return;
+                        }
+                    }
+
+                    FurnitureType ft = f.getType();
+                    if (ft == null || ft.isSolid()) continue;
+
+                    if (f.matchesOrigin(clicked, e.getBlockFace())) {
+                        punchThenBreak(f, p, "attached-block-hit");
+                        e.setCancelled(true);
+                        return;
+                    }
                 }
             }
-
-            // Check for non-solid furniture origin block hits
-            FurnitureType ft = f.getType();
-            if (ft == null || ft.isSolid()) continue;
-
-            if (f.matchesOrigin(clicked, e.getBlockFace())) {
-                FurnitureBreakHandler.removeFurniture(en.getKey(), placed, p, "attached-block-hit");
-                e.setCancelled(true);
-                return;
-            }
         }
+
+        Interaction interaction = raycastInteraction(p);
+        if (interaction == null) {
+            return;
+        }
+
+        Furniture furniture = InteractionHandler.resolveFurniture(interaction, placed);
+        if (furniture == null) {
+            return;
+        }
+        FurnitureType type = furniture.getType();
+        if (type == null || type.isSolid()) {
+            return;
+        }
+
+        punchThenBreak(furniture, p, "interaction-punched");
+        e.setCancelled(true);
     }
 
     @EventHandler
     public void onEntityDamageByEntity(EntityDamageByEntityEvent e) {
-        Entity target = e.getEntity();
-        if (!(target instanceof ItemDisplay)) return;
-        UUID id = target.getUniqueId();
-        if (!placed.containsKey(id)) return;
-
-        if (e.getDamager() instanceof Player) {
-            Player p = (Player) e.getDamager();
-            e.setCancelled(true);
-            FurnitureBreakHandler.removeFurniture(id, placed, p, "entity-damage");
+        if (!(e.getDamager() instanceof Player player)) {
+            return;
         }
+
+        Entity target = e.getEntity();
+        if (target instanceof Interaction interaction) {
+            e.setCancelled(true);
+            Furniture furniture = InteractionHandler.resolveFurniture(interaction, placed);
+            if (furniture == null) {
+                return;
+            }
+            FurnitureType type = furniture.getType();
+            if (type == null || type.isSolid()) {
+                return;
+            }
+            punchThenBreak(furniture, player, "interaction-attacked");
+            return;
+        }
+
+        if (!(target instanceof ItemDisplay)) {
+            return;
+        }
+        UUID id = target.getUniqueId();
+        Furniture furniture = placed.get(id);
+        if (furniture == null) {
+            return;
+        }
+        e.setCancelled(true);
+        punchThenBreak(furniture, player, "entity-damage");
+    }
+
+    private boolean punchThenBreak(Furniture furniture, Player player, String reason) {
+        if (furniture == null || player == null) {
+            return false;
+        }
+        if (isOnCooldown(player)) {
+            return true;
+        }
+        setCooldown(player);
+
+        FurniturePunchEvent punch = new FurniturePunchEvent(player, furniture);
+        Bukkit.getPluginManager().callEvent(punch);
+        if (punch.isCancelled()) {
+            return true;
+        }
+
+        breakResolvedFurniture(furniture, player, reason);
+        return true;
+    }
+
+    private boolean isOnCooldown(Player player) {
+        Long last = cooldown.get(player);
+        return last != null && System.currentTimeMillis() < last;
+    }
+
+    private void setCooldown(Player player) {
+        cooldown.put(player, System.currentTimeMillis() + 200);
+    }
+
+    private void breakResolvedFurniture(Furniture furniture, Player player, String reason) {
+        if (furniture == null) {
+            return;
+        }
+        if (placed.containsKey(furniture.getEntityId())) {
+            FurnitureBreakHandler.removeFurniture(furniture.getEntityId(), placed, player, reason);
+            return;
+        }
+        if (furniture.isAttached()) {
+            FurnitureBreakHandler.breakNestedFurniture(furniture, placed, player, reason);
+        }
+    }
+
+    private static Interaction raycastInteraction(Player player) {
+        Location eye = player.getEyeLocation();
+        RayTraceResult hit = player.getWorld().rayTrace(
+                eye,
+                eye.getDirection(),
+                5.0,
+                org.bukkit.FluidCollisionMode.NEVER,
+                true,
+                0.0,
+                entity -> entity instanceof Interaction);
+        if (hit == null || !(hit.getHitEntity() instanceof Interaction interaction)) {
+            return null;
+        }
+        return interaction;
     }
 
 	public Map<UUID, Furniture> getPlacedFurniture() {
@@ -381,11 +528,6 @@ public class FurnitureManager implements Listener {
         if (changed || dirtyChunks.contains(Database.ChunkKey.fromChunk(chunk))) {
             persistChunk(chunk);
         }
-
-        if (!loaded.isEmpty()) {
-            Bukkit.getLogger().info("[Furniture] Loaded " + loaded.size() + " furniture(s) in chunk " +
-                    chunk.getX() + ", " + chunk.getZ());
-        }
     }
 
     public void pulse(Player p) {
@@ -411,9 +553,6 @@ public class FurnitureManager implements Listener {
 
             // Remove them from active memory (avoid holding unloaded chunk data)
             inChunk.forEach(f -> placed.remove(f.getEntityId()));
-
-            Bukkit.getLogger().info("[Furniture] Saved & unloaded " + inChunk.size()
-                    + " furniture(s) from chunk " + chunk.getX() + ", " + chunk.getZ());
         }
     }
 
@@ -443,7 +582,24 @@ public class FurnitureManager implements Listener {
 
     public void persistFurniture(Furniture furniture) {
         if (furniture == null || furniture.getLoc() == null || furniture.getLoc().getWorld() == null) return;
-        persistChunk(furniture.getLoc().getChunk());
+        Furniture root = resolvePersistRoot(furniture);
+        if (root == null || root.getLoc() == null || root.getLoc().getWorld() == null) return;
+        persistChunk(root.getLoc().getChunk());
+    }
+
+    private Furniture resolvePersistRoot(Furniture furniture) {
+        if (furniture == null || !furniture.isAttached()) {
+            return furniture;
+        }
+        UUID parentId = furniture.getParentEntityId();
+        if (parentId == null) {
+            return furniture;
+        }
+        Furniture parent = placed.get(parentId);
+        if (parent == null) {
+            return furniture;
+        }
+        return resolvePersistRoot(parent);
     }
 
     public void persistChunk(Chunk chunk) {
@@ -498,7 +654,6 @@ public class FurnitureManager implements Listener {
 
     public void saveDirtyChunks() {
         if (dirtyChunks.isEmpty()) return;
-        int total = 0;
         Set<Database.ChunkKey> snapshot = new HashSet<>(dirtyChunks);
         for (Database.ChunkKey key : snapshot) {
             World world = Bukkit.getWorld(key.world());
@@ -514,9 +669,7 @@ public class FurnitureManager implements Listener {
             Set<Furniture> list = getFurnitureForSave(chunk);
             database.saveChunk(chunk, list);
             dirtyChunks.remove(key);
-            total += list.size();
         }
-        Bukkit.getLogger().info("[Furniture] Saved " + total + " dirty furniture record(s).");
     }
 
     public void saveAllLoadedChunks() {

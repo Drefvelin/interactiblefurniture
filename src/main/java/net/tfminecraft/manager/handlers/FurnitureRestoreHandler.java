@@ -1,6 +1,8 @@
 package net.tfminecraft.manager.handlers;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
@@ -19,6 +21,7 @@ import me.Plugins.TLibs.TLibs;
 import net.tfminecraft.InteractibleFurniture;
 import net.tfminecraft.furniture.Furniture;
 import net.tfminecraft.furniture.FurnitureType;
+import net.tfminecraft.furniture.PlacedFurnitureSlot;
 import net.tfminecraft.furniture.PlacedSlot;
 import net.tfminecraft.utils.Keys;
 
@@ -47,17 +50,33 @@ public class FurnitureRestoreHandler {
             InteractionHandler.updateInteractionPosition(furniture);
         }
         restoreSlots(furniture);
+        restoreFurnitureSlots(furniture);
         return furniture;
     }
 
+    public static void collectAllFurnitureIds(Furniture furniture, Set<UUID> out) {
+        if (furniture == null || furniture.getEntityId() == null || out == null) {
+            return;
+        }
+        out.add(furniture.getEntityId());
+        for (PlacedFurnitureSlot slot : furniture.getActiveFurnitureSlots().values()) {
+            collectAllFurnitureIds(slot.getNested(), out);
+        }
+    }
+
     public static void reconcileChunk(Chunk chunk, Map<UUID, Furniture> placed) {
+        Set<UUID> knownIds = new HashSet<>();
+        for (Furniture furniture : placed.values()) {
+            collectAllFurnitureIds(furniture, knownIds);
+        }
+
         for (Entity entity : chunk.getEntities()) {
             if (entity instanceof ItemDisplay display) {
                 String raw = display.getPersistentDataContainer().get(Keys.furnitureDisplay(), PersistentDataType.STRING);
                 if (raw == null) continue;
                 try {
                     UUID furnitureId = UUID.fromString(raw);
-                    if (!placed.containsKey(furnitureId)) {
+                    if (!knownIds.contains(furnitureId)) {
                         display.remove();
                     }
                 } catch (IllegalArgumentException ignored) {
@@ -68,13 +87,32 @@ public class FurnitureRestoreHandler {
                 if (raw == null) continue;
                 try {
                     UUID furnitureId = UUID.fromString(raw);
-                    if (!placed.containsKey(furnitureId)) {
+                    if (!knownIds.contains(furnitureId)) {
                         interaction.remove();
                     }
                 } catch (IllegalArgumentException ignored) {
                     interaction.remove();
                 }
             }
+        }
+    }
+
+    private static void restoreFurnitureSlots(Furniture parent) {
+        for (PlacedFurnitureSlot placed : parent.getActiveFurnitureSlots().values()) {
+            Furniture nested = placed.getNested();
+            if (nested == null) {
+                continue;
+            }
+            String slotId = placed.getId();
+            if (!ensureDisplay(nested)) {
+                continue;
+            }
+            nested.setAttachment(parent.getEntityId(), slotId);
+            FurnitureNestedDisplay.prepareAttached(nested);
+            FurnitureNestedDisplay.syncNestedRoot(parent, slotId, nested);
+            restoreSlots(nested);
+            FurnitureNestedDisplay.syncItemSlots(nested);
+            restoreFurnitureSlots(nested);
         }
     }
 

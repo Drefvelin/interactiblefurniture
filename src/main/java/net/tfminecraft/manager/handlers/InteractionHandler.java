@@ -10,6 +10,7 @@ import org.bukkit.entity.Interaction;
 import org.bukkit.persistence.PersistentDataType;
 
 import net.tfminecraft.furniture.Furniture;
+import net.tfminecraft.furniture.PlacedFurnitureSlot;
 import net.tfminecraft.furniture.data.InteractionData;
 import net.tfminecraft.utils.Keys;
 
@@ -17,6 +18,7 @@ public class InteractionHandler {
 
     public static void spawnInteraction(Furniture furniture) {
         if (furniture.getType() == null || !furniture.getType().hasInteraction()) return;
+        if (furniture.getType().isSolid()) return;
         if (furniture.getInteractionEntityId() != null) {
             Entity existing = Bukkit.getEntity(furniture.getInteractionEntityId());
             if (existing != null && !existing.isDead()) return;
@@ -50,6 +52,10 @@ public class InteractionHandler {
 
     public static void updateInteractionPosition(Furniture furniture) {
         if (furniture.getType() == null || !furniture.getType().hasInteraction()) return;
+        if (furniture.getType().isSolid()) {
+            removeInteraction(furniture);
+            return;
+        }
         UUID id = furniture.getInteractionEntityId();
         if (id == null) {
             spawnInteraction(furniture);
@@ -69,10 +75,51 @@ public class InteractionHandler {
         if (raw == null) return null;
         try {
             UUID displayId = UUID.fromString(raw);
-            return placed.get(displayId);
+            return findFurniture(displayId, placed);
         } catch (IllegalArgumentException e) {
             return null;
         }
+    }
+
+    public static Furniture findFurniture(UUID displayId, Map<UUID, Furniture> placed) {
+        Furniture direct = placed.get(displayId);
+        if (direct != null) {
+            return direct;
+        }
+        for (Furniture root : placed.values()) {
+            Furniture found = findNestedFurniture(root, displayId);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
+    }
+
+    private static Furniture findNestedFurniture(Furniture parent, UUID displayId) {
+        if (parent.getEntityId().equals(displayId)) {
+            return parent;
+        }
+        for (PlacedFurnitureSlot slot : parent.getActiveFurnitureSlots().values()) {
+            Furniture nested = slot.getNested();
+            if (nested == null) {
+                continue;
+            }
+            if (nested.getEntityId().equals(displayId)) {
+                return nested;
+            }
+            Furniture deeper = findNestedFurniture(nested, displayId);
+            if (deeper != null) {
+                return deeper;
+            }
+        }
+        return null;
+    }
+
+    public static Location getInteractionLocation(Furniture furniture) {
+        if (furniture.getType() == null || !furniture.getType().hasInteraction()) {
+            return null;
+        }
+        return computeInteractionLocation(furniture, furniture.getType().getInteractionData());
     }
 
     private static Location computeInteractionLocation(Furniture furniture, InteractionData data) {

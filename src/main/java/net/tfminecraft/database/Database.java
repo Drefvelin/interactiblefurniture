@@ -3,7 +3,9 @@ package net.tfminecraft.database;
 import com.google.gson.*;
 import net.tfminecraft.InteractibleFurniture;
 import net.tfminecraft.furniture.Furniture;
+import net.tfminecraft.furniture.PlacedFurnitureSlot;
 import net.tfminecraft.furniture.PlacedSlot;
+import net.tfminecraft.furniture.SlotType;
 import net.tfminecraft.loaders.FurnitureLoader;
 import net.tfminecraft.furniture.data.ModelData;
 import net.tfminecraft.enums.Display;
@@ -183,46 +185,36 @@ public class Database {
     // ------------------------------------------------------------------------
 
     private Map<String, Object> serializeFurniture(Furniture f) {
+        return serializeFurnitureState(f, false);
+    }
+
+    private Map<String, Object> serializeFurnitureState(Furniture f, boolean attached) {
         Map<String, Object> obj = new HashMap<>();
         obj.put("id", f.getId());
         obj.put("type", f.getId());
         obj.put("entityId", f.getEntityId().toString());
-        obj.put("location", serializeLocation(f.getLoc()));
         obj.put("yaw", f.getYaw());
-        obj.put("carried", f.isCarried() || f.isPersistedCarried());
 
-        f.getOriginBlockLocation().ifPresent(loc -> obj.put("originBlock", serializeLocation(loc)));
-        f.getOriginBlockFace().ifPresent(face -> obj.put("originBlockFace", face.name()));
+        if (!attached) {
+            obj.put("location", serializeLocation(f.getLoc()));
+            obj.put("carried", f.isCarried() || f.isPersistedCarried());
 
-        if (!f.getBarrierBlocks().isEmpty()) {
-            obj.put("barrierBlocks", f.getBarrierBlocks().stream()
-                    .map(b -> serializeLocation(b.getLocation()))
-                    .toList());
-        }
+            f.getOriginBlockLocation().ifPresent(loc -> obj.put("originBlock", serializeLocation(loc)));
+            f.getOriginBlockFace().ifPresent(face -> obj.put("originBlockFace", face.name()));
 
-        if (!f.getActiveSlots().isEmpty()) {
-            Map<String, Object> slots = new HashMap<>();
-            for (var entry : f.getActiveSlots().entrySet()) {
-                PlacedSlot slot = entry.getValue();
-                Map<String, Object> slotMap = new HashMap<>();
-                if (slot.getDisplayStandId() != null) {
-                    slotMap.put("displayStandId", slot.getDisplayStandId().toString());
-                }
-                ItemStack item = slot.getCurrentItem();
-                if (item == null && slot.getDisplayStandId() != null) {
-                    Entity stand = Bukkit.getEntity(slot.getDisplayStandId());
-                    if (stand instanceof ItemDisplay display) {
-                        item = display.getItemStack();
-                    }
-                }
-                String encoded = ItemStackCodec.serialize(item);
-                if (encoded != null) {
-                    slotMap.put("item", encoded);
-                }
-                slots.put(entry.getKey(), slotMap);
+            if (!f.getBarrierBlocks().isEmpty()) {
+                obj.put("barrierBlocks", f.getBarrierBlocks().stream()
+                        .map(b -> serializeLocation(b.getLocation()))
+                        .toList());
             }
-            obj.put("activeSlots", slots);
+
+            if (f.getInteractionEntityId() != null) {
+                obj.put("interactionEntityId", f.getInteractionEntityId().toString());
+            }
         }
+
+        serializeActiveSlots(f, obj);
+        serializeActiveFurnitureSlots(f, obj);
 
         Map<String, Object> dataMap = new HashMap<>();
 
@@ -242,31 +234,84 @@ public class Database {
             obj.put("data", dataMap);
         }
 
-        if (f.getInteractionEntityId() != null) {
-            obj.put("interactionEntityId", f.getInteractionEntityId().toString());
-        }
-
         return obj;
     }
 
+    private void serializeActiveSlots(Furniture f, Map<String, Object> obj) {
+        if (f.getActiveSlots().isEmpty()) {
+            return;
+        }
+        Map<String, Object> slots = new HashMap<>();
+        for (var entry : f.getActiveSlots().entrySet()) {
+            PlacedSlot slot = entry.getValue();
+            Map<String, Object> slotMap = new HashMap<>();
+            if (slot.getDisplayStandId() != null) {
+                slotMap.put("displayStandId", slot.getDisplayStandId().toString());
+            }
+            ItemStack item = slot.getCurrentItem();
+            if (item == null && slot.getDisplayStandId() != null) {
+                Entity stand = Bukkit.getEntity(slot.getDisplayStandId());
+                if (stand instanceof ItemDisplay display) {
+                    item = display.getItemStack();
+                }
+            }
+            String encoded = ItemStackCodec.serialize(item);
+            if (encoded != null) {
+                slotMap.put("item", encoded);
+            }
+            slots.put(entry.getKey(), slotMap);
+        }
+        obj.put("activeSlots", slots);
+    }
+
+    private void serializeActiveFurnitureSlots(Furniture f, Map<String, Object> obj) {
+        if (f.getActiveFurnitureSlots().isEmpty()) {
+            return;
+        }
+        Map<String, Object> furnitureSlots = new HashMap<>();
+        for (var entry : f.getActiveFurnitureSlots().entrySet()) {
+            PlacedFurnitureSlot placed = entry.getValue();
+            Furniture nested = placed.getNested();
+            if (nested == null) {
+                continue;
+            }
+            furnitureSlots.put(entry.getKey(), serializeFurnitureState(nested, true));
+        }
+        if (!furnitureSlots.isEmpty()) {
+            obj.put("activeFurnitureSlots", furnitureSlots);
+        }
+    }
+
     private Furniture deserializeFurniture(JsonObject obj) {
+        return deserializeFurnitureState(obj, false, null);
+    }
+
+    private Furniture deserializeFurnitureState(JsonObject obj, boolean attached, Furniture parent) {
         String typeId = obj.has("type") ? obj.get("type").getAsString() : obj.get("id").getAsString();
         if (FurnitureLoader.getByString(typeId) == null) return null;
 
-        Location loc = deserializeLocation(obj.getAsJsonObject("location"));
-        if (loc == null) return null;
         UUID entityId = UUID.fromString(obj.get("entityId").getAsString());
-
+        Location loc;
         Location originLoc = null;
         BlockFace originFace = null;
 
-        if (obj.has("originBlock")) {
-            originLoc = deserializeLocation(obj.getAsJsonObject("originBlock"));
-        }
-        if (obj.has("originBlockFace")) {
-            try {
-                originFace = BlockFace.valueOf(obj.get("originBlockFace").getAsString());
-            } catch (Exception ignored) {}
+        if (attached) {
+            if (parent == null || parent.getLoc() == null) {
+                return null;
+            }
+            loc = parent.getLoc().clone();
+        } else {
+            loc = deserializeLocation(obj.getAsJsonObject("location"));
+            if (loc == null) return null;
+
+            if (obj.has("originBlock")) {
+                originLoc = deserializeLocation(obj.getAsJsonObject("originBlock"));
+            }
+            if (obj.has("originBlockFace")) {
+                try {
+                    originFace = BlockFace.valueOf(obj.get("originBlockFace").getAsString());
+                } catch (Exception ignored) {}
+            }
         }
 
         Furniture furniture = new Furniture(typeId, loc, entityId, originLoc, originFace);
@@ -274,17 +319,17 @@ public class Database {
         if (obj.has("yaw")) {
             furniture.setYaw(obj.get("yaw").getAsFloat());
         }
-        if (obj.has("carried") && obj.get("carried").getAsBoolean()) {
+        if (!attached && obj.has("carried") && obj.get("carried").getAsBoolean()) {
             furniture.setPersistedCarried(true);
         }
 
-        if (obj.has("interactionEntityId")) {
+        if (!attached && obj.has("interactionEntityId")) {
             try {
                 furniture.setInteractionEntityId(UUID.fromString(obj.get("interactionEntityId").getAsString()));
             } catch (IllegalArgumentException ignored) {}
         }
 
-        if (obj.has("barrierBlocks") && obj.get("barrierBlocks").isJsonArray()) {
+        if (!attached && obj.has("barrierBlocks") && obj.get("barrierBlocks").isJsonArray()) {
             for (JsonElement el : obj.getAsJsonArray("barrierBlocks")) {
                 if (!el.isJsonObject()) continue;
                 Location barrierLoc = deserializeLocation(el.getAsJsonObject());
@@ -293,25 +338,8 @@ public class Database {
             }
         }
 
-        if (obj.has("activeSlots")) {
-            JsonObject slots = obj.getAsJsonObject("activeSlots");
-            for (String key : slots.keySet()) {
-                JsonObject sObj = slots.getAsJsonObject(key);
-                if (furniture.getType() == null || furniture.getType().getSlot(key) == null) continue;
-                PlacedSlot slot = furniture.getOrCreatePlacedSlot(key);
-
-                if (sObj.has("displayStandId")) {
-                    UUID dispId = UUID.fromString(sObj.get("displayStandId").getAsString());
-                    slot.setDisplayStandId(dispId);
-                }
-                if (sObj.has("item")) {
-                    ItemStack item = ItemStackCodec.deserialize(sObj.get("item").getAsString());
-                    if (item != null) {
-                        slot.setModel(item);
-                    }
-                }
-            }
-        }
+        deserializeActiveSlots(obj, furniture);
+        deserializeActiveFurnitureSlots(obj, furniture);
 
         if (obj.has("data")) {
             JsonObject dataObj = obj.getAsJsonObject("data");
@@ -341,6 +369,50 @@ public class Database {
         }
 
         return furniture;
+    }
+
+    private void deserializeActiveSlots(JsonObject obj, Furniture furniture) {
+        if (!obj.has("activeSlots")) {
+            return;
+        }
+        JsonObject slots = obj.getAsJsonObject("activeSlots");
+        for (String key : slots.keySet()) {
+            JsonObject sObj = slots.getAsJsonObject(key);
+            if (furniture.getType() == null || furniture.getType().getSlot(key) == null) continue;
+            PlacedSlot slot = furniture.getOrCreatePlacedSlot(key);
+
+            if (sObj.has("displayStandId")) {
+                UUID dispId = UUID.fromString(sObj.get("displayStandId").getAsString());
+                slot.setDisplayStandId(dispId);
+            }
+            if (sObj.has("item")) {
+                ItemStack item = ItemStackCodec.deserialize(sObj.get("item").getAsString());
+                if (item != null) {
+                    slot.setModel(item);
+                }
+            }
+        }
+    }
+
+    private void deserializeActiveFurnitureSlots(JsonObject obj, Furniture furniture) {
+        if (!obj.has("activeFurnitureSlots")) {
+            return;
+        }
+        JsonObject furnitureSlots = obj.getAsJsonObject("activeFurnitureSlots");
+        for (String slotId : furnitureSlots.keySet()) {
+            if (furniture.getType() == null) continue;
+            var slotDef = furniture.getType().getSlot(slotId);
+            if (slotDef == null || slotDef.getSlotType() != SlotType.FURNITURE) continue;
+
+            JsonObject nestedObj = furnitureSlots.getAsJsonObject(slotId);
+            Furniture nested = deserializeFurnitureState(nestedObj, true, furniture);
+            if (nested == null) continue;
+
+            nested.setAttachment(furniture.getEntityId(), slotId);
+            PlacedFurnitureSlot placed = furniture.getOrCreatePlacedFurnitureSlot(slotId);
+            placed.setNested(nested);
+            placed.setParent(furniture);
+        }
     }
 
     // ------------------------------------------------------------------------

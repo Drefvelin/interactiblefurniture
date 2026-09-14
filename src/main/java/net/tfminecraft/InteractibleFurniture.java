@@ -5,10 +5,12 @@ import java.io.File;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import net.tfminecraft.command.IfCommand;
+import net.tfminecraft.debug.InteractionDebugService;
 import net.tfminecraft.manager.FurnitureManager;
 
 public class InteractibleFurniture extends JavaPlugin{
     private final FurnitureManager furnitureManager = new FurnitureManager();
+    private final InteractionDebugService interactionDebugService = new InteractionDebugService(this);
 
     @Override
     public void onEnable() {
@@ -16,6 +18,7 @@ public class InteractibleFurniture extends JavaPlugin{
         loadConfigs();
         // register our furniture manager
         getServer().getPluginManager().registerEvents(furnitureManager, this);
+        getServer().getPluginManager().registerEvents(interactionDebugService, this);
         furnitureManager.start();
         furnitureManager.loadAlreadyLoadedChunks();
 
@@ -33,6 +36,7 @@ public class InteractibleFurniture extends JavaPlugin{
 
     @Override
     public void onDisable() {
+        interactionDebugService.stop();
         furnitureManager.deleteCarried();
         furnitureManager.saveAllLoadedChunks();
         getLogger().info("InteractibleFurniture has been disabled.");
@@ -97,5 +101,9 @@ public class InteractibleFurniture extends JavaPlugin{
 
     public FurnitureManager getFurnitureManager() {
         return furnitureManager;
+    }
+
+    public InteractionDebugService getInteractionDebugService() {
+        return interactionDebugService;
     }
 }

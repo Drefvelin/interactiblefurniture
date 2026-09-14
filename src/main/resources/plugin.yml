@@ -9,10 +9,12 @@ depend: [TLibs, MythicMobs]
 commands:
   if:
     description: InteractibleFurniture admin commands
-    usage: /if reload
-    permission: interactiblefurniture.reload
+    usage: /if reload | /if nested attach | /if nested detach | /if debug <on|off>
 
 permissions:
   interactiblefurniture.reload:
     description: Reload furniture and sound configs
+    default: op
+  interactiblefurniture.debug:
+    description: Toggle furniture interaction debug particles
     default: op

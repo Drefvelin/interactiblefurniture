@@ -31,8 +31,10 @@ public class FurnitureType {
     private final boolean placeOnWall;
     private final boolean placeOnRoof;
     private final boolean rotateToPlayer; // rotate to face player at 45-degree increments
+    private final boolean diagonal; // when false, snap placement to cardinals only (90°)
     private final boolean solid; // legacy: place a single barrier block at the furniture location
     private final boolean pickup; //allow picking up the furniture with right click (if slots are empty)
+    private final boolean carry; // allow shift-right-click carry (slots may have contents)
     private final boolean placeInside; // anchor to clicked block center instead of block above
     private final Set<Material> allowedBlocks; // empty = any block; non-empty = whitelist
     private final List<boolean[][]> layers; // parsed layers (each is size x size boolean matrix)
@@ -56,8 +58,10 @@ public class FurnitureType {
             this.placeOnRoof = false;
         }
         this.rotateToPlayer = cfg.getBoolean("rotate", true);
+        this.diagonal = cfg.getBoolean("diagonal", true);
         this.solid = cfg.getBoolean("solid", false);
         this.pickup = cfg.getBoolean("pickup", false);
+        this.carry = cfg.getBoolean("carry", false);
         this.placeInside = cfg.getBoolean("place-inside", false);
         this.allowedBlocks = new HashSet<>();
         for (String blockName : cfg.getStringList("allowed-blocks")) {
@@ -169,13 +173,27 @@ public class FurnitureType {
                         }
                     }
 
+                    SlotType slotType = base != null ? base.slotType : SlotType.ITEM;
+                    if (subSlotCfg.contains("slot-type")) {
+                        slotType = SlotType.fromString(subSlotCfg.getString("slot-type"));
+                    }
+
+                    boolean interactible = subSlotCfg.contains("interactible")
+                            ? subSlotCfg.getBoolean("interactible")
+                            : base != null && base.interactible != null
+                                    ? base.interactible
+                                    : whitelist != null && !whitelist.isEmpty();
+                    boolean dropOnBreak = subSlotCfg.contains("drop-on-break")
+                            ? subSlotCfg.getBoolean("drop-on-break")
+                            : base != null && base.dropOnBreak != null
+                                    ? base.dropOnBreak
+                                    : true;
+
                     SlotDefinition slot = new SlotDefinition(
                             subSlotKey, layer, row, col,
                             offset, whitelist,
                             displayRot, displayScale, displayPos,
-                            subSlotCfg.contains("interactible")
-                                    ? subSlotCfg.getBoolean("interactible")
-                                    : whitelist != null && !whitelist.isEmpty());
+                            slotType, interactible, dropOnBreak);
                     slots.put(subSlotKey, slot);
                 }
             }
@@ -271,10 +289,12 @@ public class FurnitureType {
     public boolean canPlaceOnWall() { return placeOnWall; }
     public boolean canPlaceOnRoof() { return placeOnRoof; }
     public boolean shouldRotateToPlayer() { return rotateToPlayer; }
+    public boolean allowsDiagonal() { return diagonal; }
     public boolean isSolid() { return solid; }
     public List<boolean[][]> getLayers() { return layers; }
     public Map<String, SlotDefinition> getSlots() { return slots; }
     public boolean canPickup() { return pickup; }
+    public boolean canCarry() { return carry; }
     public boolean canPlaceInside() { return placeInside; }
     public boolean isAllowedBlock(Material material) {
         return allowedBlocks.isEmpty() || allowedBlocks.contains(material);
@@ -333,7 +353,21 @@ public class FurnitureType {
                 }
             }
 
-            out.put(tname, new SlotTemplate(offset, whitelist, displayRot, displayScale, displayPos));
+            SlotType slotType = SlotType.ITEM;
+            Boolean interactible = null;
+            Boolean dropOnBreak = null;
+            if (tcfg.contains("slot-type")) {
+                slotType = SlotType.fromString(tcfg.getString("slot-type"));
+            }
+            if (tcfg.contains("interactible")) {
+                interactible = tcfg.getBoolean("interactible");
+            }
+            if (tcfg.contains("drop-on-break")) {
+                dropOnBreak = tcfg.getBoolean("drop-on-break");
+            }
+
+            out.put(tname, new SlotTemplate(offset, whitelist, displayRot, displayScale, displayPos,
+                    slotType, interactible, dropOnBreak));
         }
     }
 
@@ -343,13 +377,20 @@ public class FurnitureType {
         final Vector displayRot;
         final Vector displayScale;
         final Vector displayPos;
+        final SlotType slotType;
+        final Boolean interactible;
+        final Boolean dropOnBreak;
 
-        SlotTemplate(Vector offset, List<String> whitelist, Vector displayRot, Vector displayScale, Vector displayPos) {
+        SlotTemplate(Vector offset, List<String> whitelist, Vector displayRot, Vector displayScale, Vector displayPos,
+                SlotType slotType, Boolean interactible, Boolean dropOnBreak) {
             this.offset = offset;
             this.whitelist = whitelist;
             this.displayRot = displayRot;
             this.displayScale = displayScale;
             this.displayPos = displayPos;
+            this.slotType = slotType;
+            this.interactible = interactible;
+            this.dropOnBreak = dropOnBreak;
         }
     }
 }

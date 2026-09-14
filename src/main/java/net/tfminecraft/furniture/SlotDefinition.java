@@ -26,13 +26,16 @@ public final class SlotDefinition {
     private final Vector displayRotation;
     private final Vector displayScale;
     private final Vector displayPosition;
+    private final SlotType slotType;
     private final boolean interactible;
+    private final boolean dropOnBreak;
 
     public SlotDefinition(
             String id, int layer, int row, int col,
             Vector offset, List<String> whitelist,
             Vector displayRotation, Vector displayScale,
-            Vector displayPosition, boolean interactible) {
+            Vector displayPosition, SlotType slotType,
+            boolean interactible, boolean dropOnBreak) {
         this.id = id;
         this.layer = layer;
         this.row = row;
@@ -40,9 +43,11 @@ public final class SlotDefinition {
         this.offset = offset != null ? offset.clone() : new Vector(0, 0, 0);
         this.whitelist = whitelist != null ? List.copyOf(whitelist) : List.of();
         this.interactible = interactible;
+        this.dropOnBreak = dropOnBreak;
         this.displayRotation = displayRotation != null ? displayRotation.clone() : new Vector(0, 0, 0);
         this.displayScale = displayScale != null ? displayScale.clone() : new Vector(1, 1, 1);
         this.displayPosition = displayPosition != null ? displayPosition.clone() : new Vector(0, 0, 0);
+        this.slotType = slotType != null ? slotType : SlotType.ITEM;
     }
 
     public String getId() { return id; }
@@ -55,20 +60,41 @@ public final class SlotDefinition {
     public Vector getDisplayScale() { return displayScale.clone(); }
     public Vector getDisplayPosition() { return displayPosition.clone(); }
     public boolean isInteractible() { return interactible; }
+    public boolean dropsOnBreak() { return dropOnBreak; }
+    public SlotType getSlotType() { return slotType; }
+    public boolean isFurnitureSlot() { return slotType == SlotType.FURNITURE; }
+
+    public boolean isFurnitureAllowed(FurnitureType nestedType) {
+        if (!isFurnitureSlot() || nestedType == null) {
+            return false;
+        }
+        String path = nestedType.getItemPath();
+        if (acceptsAny()) {
+            return path != null && !path.isEmpty();
+        }
+        return whitelist.contains(path);
+    }
 
     public boolean isItemAllowed(String itemPath) {
+        if (isFurnitureSlot()) {
+            return false;
+        }
         if (acceptsAny()) return itemPath != null && !itemPath.isEmpty();
         return whitelist.contains(itemPath);
     }
 
     public boolean canInteract(ItemStack item) {
-        if (!interactible) return false;
+        if (!interactible || isFurnitureSlot()) return false;
         if (item == null || item.getType().isAir()) return true;
         return isItemAllowed(item);
     }
 
+    public boolean canInteractEmptyHand() {
+        return interactible;
+    }
+
     public boolean isItemAllowed(ItemStack item) {
-        if (!interactible) return false;
+        if (!interactible || isFurnitureSlot()) return false;
         if (item == null || item.getType().isAir()) return false;
         if (acceptsAny()) return true;
         for (String s : whitelist) {

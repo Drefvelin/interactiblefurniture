@@ -15,6 +15,7 @@ import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 
 import net.tfminecraft.furniture.data.DisplayData;
+import net.tfminecraft.manager.handlers.FurnitureNestedDisplay;
 import net.tfminecraft.utils.Keys;
 
 /**
@@ -61,6 +62,10 @@ public final class PlacedSlot {
         this.displayStandId = displayStandId;
     }
 
+    public DisplayData getCurrentDisplayData() {
+        return currentData != null ? currentData : new DisplayData();
+    }
+
     public void setModel(ItemStack item) {
         this.currentItem = item;
     }
@@ -90,6 +95,9 @@ public final class PlacedSlot {
             ItemDisplay parent = (ItemDisplay) Bukkit.getEntity(furniture.getEntityId());
             if (parent != null) {
                 spawnDisplayStand(furniture.getLoc(), i, parent, null);
+                if (furniture.isAttached()) {
+                    FurnitureNestedDisplay.syncItemSlots(furniture);
+                }
                 return;
             }
         }
@@ -112,10 +120,11 @@ public final class PlacedSlot {
         ItemDisplay parentDisplay = (ItemDisplay) Bukkit.getEntity(furniture.getEntityId());
         if (parentDisplay == null) return;
 
-        Location newLoc = def.computeDisplayLocation(furniture.getLoc(), parentDisplay, data);
-        display.teleport(newLoc);
-        display.setTransformation(def.buildFinalTransformation(parentDisplay, data));
+        if (data == null) {
+            data = new DisplayData();
+        }
         currentData = data;
+        syncDisplayToParent(parentDisplay, data, false);
     }
 
     public void setRotation(DisplayData data) {
@@ -123,49 +132,75 @@ public final class PlacedSlot {
     }
 
     public void followParentTransform(ItemDisplay parentDisplay) {
-        if (displayStandId == null || furniture == null) return;
+        syncDisplayToParent(parentDisplay, getCurrentDisplayData(), true);
+    }
+
+    public void syncDisplayToParent(ItemDisplay parentDisplay, DisplayData data) {
+        syncDisplayToParent(parentDisplay, data, false);
+    }
+
+    private void syncDisplayToParent(ItemDisplay parentDisplay, DisplayData data, boolean interpolate) {
+        if (displayStandId == null || furniture == null || parentDisplay == null) {
+            return;
+        }
         SlotDefinition def = getDefinition();
-        if (def == null) return;
+        if (def == null) {
+            return;
+        }
 
         ItemDisplay slotDisp = (ItemDisplay) Bukkit.getEntity(displayStandId);
-        if (slotDisp == null) return;
+        if (slotDisp == null) {
+            return;
+        }
 
-        DisplayData data = currentData != null ? currentData : new DisplayData();
+        if (data == null) {
+            data = new DisplayData();
+        }
+        currentData = data;
+
         Location desiredLoc = def.computeDisplayLocationFromTransform(parentDisplay, data);
         float offset = furniture.getType() != null
                 ? (float) (furniture.getType().getDisplayData().getyPos() * -1)
                 : 0f;
         desiredLoc.add(0, offset, 0);
 
-        Location originLoc = slotDisp.getLocation();
-        Vector diff = desiredLoc.toVector().subtract(originLoc.toVector());
-
         Transformation baseT = def.buildFinalTransformation(parentDisplay, data);
-        baseT.getTranslation().set(
-                (float) diff.getX(),
-                (float) diff.getY(),
-                (float) diff.getZ()
-        );
 
-        slotDisp.setInterpolationDuration(2);
-        slotDisp.setInterpolationDelay(0);
+        if (interpolate && furniture.isCarried()) {
+            Location originLoc = slotDisp.getLocation();
+            Vector diff = desiredLoc.toVector().subtract(originLoc.toVector());
+            baseT.getTranslation().set(
+                    (float) diff.getX(),
+                    (float) diff.getY(),
+                    (float) diff.getZ()
+            );
+            slotDisp.setInterpolationDuration(2);
+            slotDisp.setInterpolationDelay(0);
+            slotDisp.setTransformation(baseT);
+            return;
+        }
+
+        slotDisp.teleport(desiredLoc);
         slotDisp.setTransformation(baseT);
     }
 
     public void spawnDisplayStand(Location baseLocation, ItemStack item, ItemDisplay parentDisplay, DisplayData data) {
         SlotDefinition def = getDefinition();
-        if (def == null || furniture == null) return;
+        if (def == null || furniture == null || parentDisplay == null) return;
         if (data == null) data = new DisplayData();
         currentData = data;
 
-        Location worldLoc = def.computeDisplayLocation(baseLocation, parentDisplay, data);
+        Location spawnLoc = parentDisplay.getLocation();
+        if (spawnLoc.getWorld() == null) {
+            spawnLoc = baseLocation;
+        }
 
-        ItemDisplay display = (ItemDisplay) worldLoc.getWorld().spawnEntity(worldLoc, EntityType.ITEM_DISPLAY);
+        ItemDisplay display = (ItemDisplay) spawnLoc.getWorld().spawnEntity(spawnLoc, EntityType.ITEM_DISPLAY);
         display.setItemStack(item.clone());
         display.setBillboard(Display.Billboard.FIXED);
         display.setBrightness(new Display.Brightness(
-                baseLocation.getBlock().getLightLevel(),
-                baseLocation.getBlock().getLightLevel()));
+                spawnLoc.getBlock().getLightLevel(),
+                spawnLoc.getBlock().getLightLevel()));
         display.setShadowRadius(0.1f);
         display.setShadowStrength(0.1f);
         display.setPersistent(true);
@@ -179,10 +214,9 @@ public final class PlacedSlot {
                 PersistentDataType.STRING,
                 slotId);
 
-        display.setTransformation(def.buildFinalTransformation(parentDisplay, data));
-
         this.displayStandId = display.getUniqueId();
         this.currentItem = item;
+        syncDisplayToParent(parentDisplay, data, false);
     }
 
     public void removeDisplayStand(World world) {

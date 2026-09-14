@@ -141,28 +141,35 @@ public class FurniturePlacementHandler {
         return target;
     }
 
-    private static Direction getPlayerFacing(Player player) {
+    private static Direction getPlayerFacing(Player player, boolean allowDiagonal) {
         float yaw = player.getLocation().getYaw();
-        
-        // Normalize yaw to 0-360 range
+
         while (yaw < 0) yaw += 360;
         while (yaw >= 360) yaw -= 360;
-        
-        // Snap to 45 degrees
-        yaw = Math.round(yaw / 45f) * 45f;
-        
-        Direction facing = switch ((int) yaw) {
+
+        if (allowDiagonal) {
+            yaw = Math.round(yaw / 45f) * 45f;
+            return switch ((int) yaw) {
+                case 0 -> Direction.SOUTH;
+                case 45 -> Direction.SOUTH_WEST;
+                case 90 -> Direction.WEST;
+                case 135 -> Direction.NORTH_WEST;
+                case 180 -> Direction.NORTH;
+                case 225 -> Direction.NORTH_EAST;
+                case 270 -> Direction.EAST;
+                case 315 -> Direction.SOUTH_EAST;
+                default -> Direction.SOUTH;
+            };
+        }
+
+        yaw = Math.round(yaw / 90f) * 90f;
+        return switch ((int) yaw) {
             case 0 -> Direction.SOUTH;
-            case 45 -> Direction.SOUTH_WEST;
             case 90 -> Direction.WEST;
-            case 135 -> Direction.NORTH_WEST;
             case 180 -> Direction.NORTH;
-            case 225 -> Direction.NORTH_EAST;
             case 270 -> Direction.EAST;
-            case 315 -> Direction.SOUTH_EAST;
-            default -> Direction.SOUTH; // Fallback
+            default -> Direction.SOUTH;
         };
-        return facing;
     }
 
     private static float calculateYaw(Player player, BlockFace face, FurnitureType type) {
@@ -186,7 +193,7 @@ public class FurniturePlacementHandler {
         }
 
         // For ground placement, get player facing direction
-        Direction facing = getPlayerFacing(player);
+        Direction facing = getPlayerFacing(player, type.allowsDiagonal());
         
         // Convert direction to yaw - you can adjust these values as needed
         float yaw = switch (facing) {

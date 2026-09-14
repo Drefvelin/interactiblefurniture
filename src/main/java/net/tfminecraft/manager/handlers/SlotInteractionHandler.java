@@ -19,17 +19,20 @@ import net.tfminecraft.events.FurnitureSlotItemAddEvent;
 import net.tfminecraft.events.FurnitureSlotItemTakeEvent;
 import net.tfminecraft.furniture.Furniture;
 import net.tfminecraft.furniture.FurnitureType;
+import net.tfminecraft.furniture.PlacedFurnitureSlot;
 import net.tfminecraft.furniture.PlacedSlot;
 import net.tfminecraft.furniture.SlotDefinition;
+import net.tfminecraft.furniture.SlotType;
 import net.tfminecraft.furniture.data.DisplayData;
 import net.tfminecraft.loaders.SoundLoader;
 import net.tfminecraft.utils.CoordinateUtils;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 public class SlotInteractionHandler {
+    public record SlotHitTarget(Furniture furniture, SlotDefinition slot, double distance) {}
+
     public static boolean handleSlotInteraction(Player player, Block clicked, Action action, Furniture furniture,
             Entity furnitureEntity, org.bukkit.block.BlockFace clickedFace) {
         FurnitureType type = furniture.getType();
@@ -57,18 +60,111 @@ public class SlotInteractionHandler {
     }
 
     public static SlotDefinition findClosestSlotForHit(Vector clickPoint, Furniture furniture, ItemDisplay parent) {
+        return findClosestSlotForHit(clickPoint, furniture, parent, null);
+    }
+
+    public static SlotDefinition findClosestSlotForHit(Vector clickPoint, Furniture furniture, ItemDisplay parent, ItemStack held) {
+        SlotHitTarget target = findBestSlotHit(clickPoint, furniture, parent, held);
+        return target != null ? target.slot() : null;
+    }
+
+    public static SlotHitTarget findBestSlotHit(Vector clickPoint, Furniture furniture, ItemDisplay display) {
+        return findBestSlotHit(clickPoint, furniture, display, null);
+    }
+
+    public static SlotHitTarget findBestSlotHit(Vector clickPoint, Furniture furniture, ItemDisplay display, ItemStack held) {
+        if (clickPoint == null || furniture == null || display == null) {
+            return null;
+        }
+
+        SlotHitTarget best = null;
+
+        for (PlacedFurnitureSlot placed : furniture.getActiveFurnitureSlots().values()) {
+            Furniture nested = placed.getNested();
+            if (nested == null) {
+                continue;
+            }
+            var nestedEntity = Bukkit.getEntity(nested.getEntityId());
+            if (!(nestedEntity instanceof ItemDisplay nestedDisplay)) {
+                continue;
+            }
+            SlotHitTarget nestedHit = findBestSlotHit(clickPoint, nested, nestedDisplay, held);
+            if (nestedHit != null && (best == null || nestedHit.distance() < best.distance())) {
+                best = nestedHit;
+            }
+        }
+
         FurnitureType type = furniture.getType();
-        if (type == null || clickPoint == null) return null;
-        Collection<SlotDefinition> slots = type.getSlots().values();
-        if (slots.isEmpty()) return null;
+        if (type != null) {
+            for (SlotDefinition slot : type.getSlots().values()) {
+                if (!slotAcceptsHeld(slot, held)) {
+                    continue;
+                }
+                Location slotLoc = slot.computeDisplayLocation(
+                        furniture.getLoc(),
+                        display,
+                        new DisplayData()
+                );
+                double dist = CoordinateUtils.distance3D(slotLoc.toVector(), clickPoint);
+                if (best == null || dist < best.distance()) {
+                    best = new SlotHitTarget(furniture, slot, dist);
+                }
+            }
+        }
+
+        return best;
+    }
+
+    private static boolean slotAcceptsHeld(SlotDefinition slot, ItemStack held) {
+        if (slot == null || !slot.isInteractible()) {
+            return false;
+        }
+        if (held == null || held.getType().isAir()) {
+            return slot.canInteractEmptyHand();
+        }
+        return slot.canInteract(held);
+    }
+
+    public static boolean tryAttachCarried(Player player, Furniture parent, Furniture carried, Vector clickPoint) {
+        if (player == null || parent == null || carried == null || clickPoint == null) {
+            return false;
+        }
+        var parentEntity = Bukkit.getEntity(parent.getEntityId());
+        if (!(parentEntity instanceof ItemDisplay display)) {
+            return false;
+        }
+
+        SlotDefinition slot = findClosestEmptyFurnitureSlot(parent, carried, clickPoint, display);
+        if (slot == null) {
+            return false;
+        }
+        return FurnitureAttachmentHandler.attachFromCarried(parent, slot.getId(), carried, player);
+    }
+
+    private static SlotDefinition findClosestEmptyFurnitureSlot(
+            Furniture parent, Furniture carried, Vector clickPoint, ItemDisplay display) {
+        FurnitureType type = parent.getType();
+        FurnitureType carriedType = carried.getType();
+        if (type == null || carriedType == null) {
+            return null;
+        }
 
         SlotDefinition closest = null;
         double closestDist = Double.MAX_VALUE;
 
-        for (SlotDefinition slot : slots) {
+        for (SlotDefinition slot : type.getSlots().values()) {
+            if (slot.getSlotType() != SlotType.FURNITURE || !slot.isInteractible()) {
+                continue;
+            }
+            if (parent.hasActiveFurnitureSlot(slot.getId())) {
+                continue;
+            }
+            if (!slot.isFurnitureAllowed(carriedType)) {
+                continue;
+            }
             Location slotLoc = slot.computeDisplayLocation(
-                    furniture.getLoc(),
-                    parent,
+                    parent.getLoc(),
+                    display,
                     new DisplayData()
             );
             double dist = CoordinateUtils.distance3D(slotLoc.toVector(), clickPoint);
@@ -77,6 +173,7 @@ public class SlotInteractionHandler {
                 closest = slot;
             }
         }
+
         return closest;
     }
 
@@ -89,7 +186,10 @@ public class SlotInteractionHandler {
         double closestDist = Double.MAX_VALUE;
 
         for (SlotDefinition slot : slots) {
-            if (!slot.canInteract(item)) continue;
+            boolean canInteract = item == null || item.getType().isAir()
+                    ? slot.canInteractEmptyHand()
+                    : slot.canInteract(item);
+            if (!canInteract) continue;
             Location slotLoc = slot.computeDisplayLocation(
                 furniture.getLoc(),
                 (ItemDisplay) furnitureEntity,
@@ -121,11 +221,32 @@ public class SlotInteractionHandler {
             Entity furnitureEntity, SlotDefinition slot) {
         ItemStack held = player.getInventory().getItemInMainHand();
 
+        if (slot.isFurnitureSlot()) {
+            if (held == null || held.getType() == Material.AIR) {
+                return tryTakeFurniture(player, furniture, slot);
+            }
+            return false;
+        }
+
         if (held == null || held.getType() == Material.AIR) {
             return tryTakeItem(player, furniture, slot);
         }
 
         return tryPlaceItem(player, furniture, furnitureEntity, slot, held);
+    }
+
+    private static boolean tryTakeFurniture(Player player, Furniture furniture, SlotDefinition slot) {
+        if (!furniture.hasActiveFurnitureSlot(slot.getId())) {
+            return false;
+        }
+        Furniture detached = FurnitureAttachmentHandler.detach(furniture, slot.getId(), player);
+        if (detached == null) {
+            return false;
+        }
+        detached.carry(player);
+        furniture.getLoc().getWorld().playSound(furniture.getLoc(), "minecraft:entity.item_frame.add_item", 1, 1);
+        player.swingMainHand();
+        return true;
     }
 
     private static boolean tryTakeItem(Player player, Furniture furniture, SlotDefinition slot) {
