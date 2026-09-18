@@ -20,6 +20,7 @@ frying_pan:
           - "c.meat(type=meat_pork)"
           - "c.meat(type=meat_poultry)"
           - "c.meat(type=meat_poultry_leg)"
+          - "c.meat(type=sausage)"
         display:
           rotation:
             x: 0
@@ -1533,4 +1534,62 @@ sausage_maker:
         offset:
           x: 0.5
           y: 0.2
+          z: 0
+
+trough:
+  item: "ia.tfmc_cooking:trough"
+  model:
+    display: item_display
+    model: ia.tfmc_cooking:trough
+  placement_options:
+    floor: true
+  rotate: true
+  pickup: true
+  carry: true
+  solid: true
+  sound:
+    place: block.wood.place
+    break: block.wood.break
+  slots:
+    templates:
+      trough_feed:
+        interactible: false
+        drop-on-break: true
+        display:
+          rotation:
+            x: 0
+            y: 0
+            z: 0
+          scale:
+            x: 0.45
+            y: 0.45
+            z: 0.45
+          position:
+            x: 0
+            y: 0
+            z: 0
+    center:
+      a:
+        template: trough_feed
+        offset:
+          x: -0.28
+          y: 0.12
+          z: 0
+      b:
+        template: trough_feed
+        offset:
+          x: -0.1
+          y: 0.12
+          z: 0
+      c:
+        template: trough_feed
+        offset:
+          x: 0.1
+          y: 0.12
+          z: 0
+      d:
+        template: trough_feed
+        offset:
+          x: 0.28
+          y: 0.12
           z: 0
