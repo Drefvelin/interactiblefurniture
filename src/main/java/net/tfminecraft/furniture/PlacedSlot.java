@@ -198,9 +198,6 @@ public final class PlacedSlot {
         ItemDisplay display = (ItemDisplay) spawnLoc.getWorld().spawnEntity(spawnLoc, EntityType.ITEM_DISPLAY);
         display.setItemStack(item.clone());
         display.setBillboard(Display.Billboard.FIXED);
-        display.setBrightness(new Display.Brightness(
-                spawnLoc.getBlock().getLightLevel(),
-                spawnLoc.getBlock().getLightLevel()));
         display.setShadowRadius(0.1f);
         display.setShadowStrength(0.1f);
         display.setPersistent(true);

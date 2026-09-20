@@ -120,6 +120,7 @@ public class FurnitureRestoreHandler {
         Entity existing = Bukkit.getEntity(furniture.getEntityId());
         if (existing instanceof ItemDisplay display && !display.isDead()) {
             FurniturePlacementHandler.tagDisplay(display, furniture.getEntityId());
+            display.setBrightness(null);
             Location saved = furniture.getLoc();
             if (display.getWorld().equals(saved.getWorld())
                     && display.getLocation().distanceSquared(saved) > 1.0) {
@@ -170,6 +171,7 @@ public class FurnitureRestoreHandler {
             UUID standId = slot.getDisplayStandId();
             Entity stand = standId != null ? Bukkit.getEntity(standId) : null;
             if (stand instanceof ItemDisplay slotDisplay && !slotDisplay.isDead()) {
+                slotDisplay.setBrightness(null);
                 if (item != null) {
                     slotDisplay.setItemStack(item);
                 } else if (slotDisplay.getItemStack() != null) {

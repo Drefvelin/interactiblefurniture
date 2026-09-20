@@ -268,6 +268,7 @@ public class Furniture {
         ItemDisplay display = (ItemDisplay) Bukkit.getEntity(entityId);
         display.setTransformation(newDisplay.getTransformation());
         display.teleport(newDisplay.getLocation());
+        display.setBrightness(null);
 
         // Reset slot origins (necessary so slots follow correctly after placement)
         for (PlacedSlot slot : activeSlots.values()) {
@@ -279,6 +280,7 @@ public class Furniture {
             if(slotDisplay == null) continue;
             slotDisplay.teleport(newLoc);
             slotDisplay.setTransformation(t);
+            slotDisplay.setBrightness(null);
         }
         FurnitureNestedDisplay.onParentTransformChanged(this);
         newDisplay.remove();

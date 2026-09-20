@@ -39,7 +39,6 @@ import net.tfminecraft.database.Database;
 import net.tfminecraft.events.FurnitureInteractEvent;
 import net.tfminecraft.events.FurniturePunchEvent;
 import net.tfminecraft.furniture.Furniture;
-import net.tfminecraft.furniture.PlacedSlot;
 import net.tfminecraft.furniture.FurnitureType;
 import net.tfminecraft.furniture.SlotDefinition;
 import net.tfminecraft.manager.handlers.FurniturePlacementHandler;
@@ -83,7 +82,7 @@ public class FurnitureManager implements Listener {
     public void start() {
         this.database = new Database();
         saveCycle();
-        lightCycle();
+        carryCycle();
     }
 
     public void saveCycle() {
@@ -95,33 +94,15 @@ public class FurnitureManager implements Listener {
         }.runTaskTimer(InteractibleFurniture.getInstance(), 1200L, 1200L);
     }
 
-    public void lightCycle() {
+    public void carryCycle() {
         new BukkitRunnable() {
             @Override
             public void run() {
                 for (Furniture f : placed.values()) {
                     f.tick();
-                    Entity ent = Bukkit.getEntity(f.getEntityId());
-                    if (!(ent instanceof ItemDisplay display)) continue;
-
-                    Block block = f.getLoc().getBlock();
-                    int blockLight = block.getLightFromBlocks();
-                    int skyLight = block.getLightFromSky();
-
-                    display.setBrightness(new ItemDisplay.Brightness(blockLight, skyLight));
-
-                    for (PlacedSlot slot : f.getActiveSlots().values()) {
-                        UUID displayId = slot.getDisplayStandId();
-                        if (displayId == null) continue;
-
-                        Entity slotEnt = Bukkit.getEntity(displayId);
-                        if (!(slotEnt instanceof ItemDisplay slotDisplay)) continue;
-
-                        slotDisplay.setBrightness(new ItemDisplay.Brightness(blockLight, skyLight));
-                    }
                 }
             }
-        }.runTaskTimer(InteractibleFurniture.getInstance(), 0L, 1L); // sync, once per second
+        }.runTaskTimer(InteractibleFurniture.getInstance(), 0L, 1L);
     }
 
 

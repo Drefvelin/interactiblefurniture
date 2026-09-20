@@ -367,8 +367,6 @@ public class FurniturePlacementHandler {
                     new Vector3f((float) data.getxScale(), (float) data.getyScale(), (float) data.getzScale()),
                     new org.joml.Quaternionf()
             ));
-            disp.setBrightness(new org.bukkit.entity.Display.Brightness(
-                    spawnLoc.getBlock().getLightFromBlocks(), spawnLoc.getBlock().getLightFromSky()));
             disp.setShadowRadius(0f);
             disp.setShadowStrength(0f);
             disp.setViewRange(50f);
