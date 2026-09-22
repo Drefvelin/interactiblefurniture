@@ -176,10 +176,14 @@ pot:
       pot_slot:
         whitelist:
           - "c.vegetable(type=vegetable_cut)"
+          - "c.vegetable(type=vegetable_cut_2)"
           - "c.meat(type=meat_red_meat)"
           - "c.meat(type=meat_pork)"
           - "c.meat(type=meat_poultry)"
           - "c.meat(type=meat_poultry_leg)"
+          - "c.seafood(type=seafood_fish_filet)"
+          - "c.seafood(type=seafood_jellyfish)"
+          - "c.seafood(type=seafood_octopus)"
         display:
           rotation:
             x: 0
@@ -445,11 +449,15 @@ cutting_board:
       board_slot:
         whitelist:
           - "c.vegetable(type=vegetable_1)"
+          - "c.vegetable(type=vegetable_2)"
           - "c.vegetable(type=vegetable_cut)"
+          - "c.vegetable(type=vegetable_cut_2)"
           - "c.vegetable(type=vegetable_chop_only)"
           - "c.garnish(type=vegetable_chopped)"
+          - "c.garnish(type=vegetable_chopped_2)"
           - "c.garnish(type=garnish_chopped)"
           - "c.spice"
+          - "c.seafood(type=seafood_whole)"
         display:
           rotation:
             x: 0
@@ -628,6 +636,7 @@ plate:
           - "c.vegetable"
           - "c.meat"
           - "c.fruit"
+          - "c.seafood"
         display:
           rotation:
             x: 0
